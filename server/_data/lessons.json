@@ -1,0 +1,27 @@
+
+[
+  {
+    "_id": "6d713995b721c3bb38c1f5d0",
+    "title": "What is a Budget?",
+    "description": "Learn the importance of budgeting and how to create a simple budget to manage your expenses.",
+    "skillDomain": "5d713995b721c3bb38c1f5d0"
+  },
+  {
+    "_id": "6d713a66b721c3bb38c1f5d1",
+    "title": "Understanding Savings",
+    "description": "Discover the power of saving and learn about different ways to save your money effectively.",
+    "skillDomain": "5d713995b721c3bb38c1f5d0"
+  },
+  {
+    "_id": "6d713a66b721c3bb38c1f5d2",
+    "title": "Online Safety Basics",
+    "description": "Learn how to protect yourself from online threats and navigate the digital world safely.",
+    "skillDomain": "5d713a66b721c3bb38c1f5d1"
+  },
+  {
+    "_id": "6d713a66b721c3bb38c1f5d3",
+    "title": "Introduction to Coding",
+    "description": "Get a gentle introduction to the world of coding and learn some basic programming concepts.",
+    "skillDomain": "5d713a66b721c3bb38c1f5d1"
+  }
+]

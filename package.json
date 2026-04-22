@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "build": "cd client && npm run build",
+    "lint": "cd client && npm run lint",
+    "predeploy": "npm run lint && npm run build"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11"
+  }
+}

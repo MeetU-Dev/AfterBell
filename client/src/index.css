@@ -1,0 +1,139 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0D1117] text-gray-100 font-sans;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Smooth scrolling with better performance */
+    scroll-padding-top: 5rem;
+    /* Reduce motion for users who prefer it */
+    @media (prefers-reduced-motion: reduce) {
+      scroll-behavior: auto;
+    }
+  }
+
+  /* Performance optimizations for all elements */
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Optimize animations and transitions */
+  .animate-smooth {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
+  /* Optimize video elements */
+  video {
+    will-change: auto;
+    transform: translateZ(0);
+  }
+
+  /* Optimize images */
+  img {
+    will-change: auto;
+    transform: translateZ(0);
+  }
+}
+
+@layer components {
+  .container {
+    @apply max-w-7xl mx-auto px-6;
+  }
+  
+  .btn-primary {
+    @apply bg-secondary-green text-white px-6 py-3 rounded-full font-semibold hover:bg-green-500 transition-all duration-300;
+  }
+  
+  .btn-secondary {
+    @apply bg-transparent border-2 border-secondary-green text-secondary-green px-6 py-3 rounded-full font-semibold hover:bg-secondary-green hover:text-white transition-all duration-300;
+  }
+  
+  .text-gradient {
+    @apply bg-gradient-to-r from-secondary-green to-green-400 bg-clip-text text-transparent;
+  }
+
+  .glassmorphism {
+    @apply bg-slate-900/50 backdrop-blur-lg border border-slate-700/50;
+  }
+
+  .card-glass {
+    @apply bg-slate-800/50 backdrop-blur-md border border-slate-700/30 hover:border-secondary-green/50 transition-all duration-300;
+  }
+
+  /* Performance-optimized components */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    will-change: transform;
+  }
+
+  .optimized-animation {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  .smooth-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fast-transition {
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Optimized backdrop blur */
+  .backdrop-blur-optimized {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    will-change: backdrop-filter;
+  }
+
+  /* Optimized shadows */
+  .shadow-optimized {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    will-change: box-shadow;
+  }
+
+  /* Line clamp utilities for better text rendering */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+} 
