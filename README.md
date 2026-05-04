@@ -27,7 +27,7 @@
    NODE_ENV=development
    MONGO_URI=mongodb://localhost:27017/afterbell
    JWT_SECRET=your_secret_key_here
-   PORT=5000
+   PORT=5001
    CLIENT_URL=http://localhost:3000
    ```
    
@@ -41,7 +41,8 @@
    net start MongoDB
    
    # macOS
-   brew services start mongodb-community
+   brew tap mongodb/brew
+   brew services start mongodb/brew/mongodb-community
    
    # Linux
    sudo systemctl start mongod
@@ -54,7 +55,7 @@
    cd server
    npm run dev
    ```
-   Backend will run on `http://localhost:5000`
+   Backend will run on `http://localhost:5001`
 
    **Terminal 2 - Frontend:**
    ```bash
