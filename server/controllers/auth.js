@@ -191,7 +191,9 @@ exports.getMe = async (req, res) => {
     id: user._id,
     name: user.name,
     email: user.email,
+    phone: user.phone || '',
     role: user.role,
+    phoneVerified: !!user.phoneVerified,
     linkedTeenIds: user.linkedTeenIds,
     ...(user.role === 'teen' && { verifiedByParent: !!user.verifiedByParent }),
   };
@@ -217,8 +219,10 @@ const sendTokenResponse = (user, statusCode, res) => {
   const userPayload = {
     id: user._id,
     email: user.email,
+    phone: user.phone || '',
     name: user.name,
     role: user.role || 'teen',
+    phoneVerified: !!user.phoneVerified,
     ...(user.role === 'teen' && { verifiedByParent: !!user.verifiedByParent }),
   };
 

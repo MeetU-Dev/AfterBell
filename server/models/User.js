@@ -10,16 +10,26 @@ const UserSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please add an email'],
+    required: false,
     unique: true,
+    sparse: true,
+    trim: true,
+    lowercase: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
       'Please add a valid email',
     ],
   },
+  phone: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true,
+    trim: true,
+  },
   password: {
     type: String,
-    required: [true, 'Please add a password'],
+    required: false,
     minlength: 6,
     select: false,
   },
@@ -40,6 +50,15 @@ const UserSchema = new mongoose.Schema({
   },
   parentVerificationToken: String,
   parentVerificationExpires: Date,
+  otp: {
+    type: String,
+    select: false,
+  },
+  otpExpiry: Date,
+  phoneVerified: {
+    type: Boolean,
+    default: false,
+  },
   // For teens: set when parent approves (parent's user id)
   linkedParentId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   // For parents: teens they can see in dashboard
@@ -62,12 +81,13 @@ const UserSchema = new mongoose.Schema({
 
 // Encrypt password using bcrypt
 UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) {
-    next();
+  if (!this.isModified('password') || !this.password) {
+    return next();
   }
 
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
 // Sign JWT and return

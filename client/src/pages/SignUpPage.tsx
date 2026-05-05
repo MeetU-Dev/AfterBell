@@ -1,993 +1,416 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiLoader, FiCheck, FiPhone } from 'react-icons/fi';
-import { FcGoogle } from 'react-icons/fc';
-import { FaFacebook, FaTwitter } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { FiArrowRight, FiLoader, FiMail, FiPhone, FiRefreshCw, FiUser } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
+import OTPInput from '../components/OTPInput';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
+
+const COUNTRY_CODES = [
+  { label: 'US (+1)', value: '+1' },
+  { label: 'India (+91)', value: '+91' },
+  { label: 'UK (+44)', value: '+44' },
+  { label: 'UAE (+971)', value: '+971' },
+  { label: 'Australia (+61)', value: '+61' },
+];
 
 const SignUpPage: React.FC = () => {
-    const { register } = useAuth();
-    const navigate = useNavigate();
-    const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
-        email: '',
-        password: '',
-        confirmPassword: '',
-        agreeToTerms: false,
-        role: 'teen' as 'teen' | 'parent',
-        parentEmail: '',
-        parentPhone: ''
+  const { sendOtp, verifyOtp } = useAuth();
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+
+  const [step, setStep] = useState<'details' | 'otp' | 'success'>('details');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [countryCode, setCountryCode] = useState('+1');
+  const [phone, setPhone] = useState('');
+  const [role, setRole] = useState<'teen' | 'parent'>('teen');
+  const [parentEmail, setParentEmail] = useState('');
+  const [parentPhone, setParentPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [successMessage, setSuccessMessage] = useState('');
+  const [parentVerifyUrl, setParentVerifyUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+
+    const timer = window.setInterval(() => {
+      setResendCooldown(previous => {
+        if (previous <= 1) {
+          window.clearInterval(timer);
+          return 0;
+        }
+
+        return previous - 1;
+      });
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, [resendCooldown]);
+
+  const validateDetails = () => {
+    const nextErrors: Record<string, string> = {};
+
+    if (!firstName.trim()) nextErrors.firstName = 'First name is required';
+    if (!lastName.trim()) nextErrors.lastName = 'Last name is required';
+    if (!phone.trim()) nextErrors.phone = 'Phone number is required';
+    if (email.trim() && !/\S+@\S+\.\S+/.test(email.trim())) nextErrors.email = 'Please enter a valid email';
+    if (role === 'teen') {
+      if (!parentEmail.trim()) nextErrors.parentEmail = 'Parent email is required for teen signup';
+      else if (!/\S+@\S+\.\S+/.test(parentEmail.trim())) nextErrors.parentEmail = 'Please enter a valid parent email';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const sendCode = async () => {
+    if (!validateDetails()) return;
+
+    setLoading(true);
+    setErrors({});
+
+    const result = await sendOtp({
+      phone: phone.trim(),
+      countryCode,
+      role,
+      intent: 'signup',
+      name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+      email: email.trim() || undefined,
+      parentEmail: role === 'teen' ? parentEmail.trim() : undefined,
+      parentPhone: role === 'teen' && parentPhone.trim() ? parentPhone.trim() : undefined,
     });
-    const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
-    const [focusedField, setFocusedField] = useState<string | null>(null);
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [isLogoPulsing, setIsLogoPulsing] = useState(false);
-    const [hasSubmitted, setHasSubmitted] = useState(false);
-    const [signupSuccess, setSignupSuccess] = useState(false);
-    const [parentVerifyUrl, setParentVerifyUrl] = useState<string | null>(null);
 
-    const handleInputChange = (field: string, value: string | boolean) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    setLoading(false);
 
-        // Clear error when user starts typing
-        if (errors[field]) {
-            setErrors(prev => ({ ...prev, [field]: '' }));
-        }
+    if (!result.success) {
+      setErrors({ general: result.message || 'Unable to send OTP' });
+      return;
+    }
 
-        // Logo pulse effect for password fields
-        if ((field === 'password' || field === 'confirmPassword') && typeof value === 'string' && value.length > 0 && !isLogoPulsing) {
-            setIsLogoPulsing(true);
-            setTimeout(() => setIsLogoPulsing(false), 1000);
-        }
-    };
+    setStep('otp');
+    setOtp('');
+    setResendCooldown(30);
+    showToast('success', 'OTP sent', `We sent a verification code to ${countryCode} ${phone.trim()}.`, 2500);
+  };
 
-    const validateForm = () => {
-        const newErrors: { [key: string]: string } = {};
+  const verifyCode = async (value?: string) => {
+    const currentOtp = (value || otp).trim();
+    if (currentOtp.length !== 6 || loading) return;
 
-        if (!formData.firstName.trim()) {
-            newErrors.firstName = 'First name is required';
-        }
+    setLoading(true);
+    setErrors({});
 
-        if (!formData.lastName.trim()) {
-            newErrors.lastName = 'Last name is required';
-        }
+    const result = await verifyOtp({
+      phone: phone.trim(),
+      countryCode,
+      otp: currentOtp,
+    });
 
-        if (!formData.email) {
-            newErrors.email = 'Email is required';
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = 'Please enter a valid email';
-        }
+    setLoading(false);
 
-        if (!formData.password) {
-            newErrors.password = 'Password is required';
-        } else if (formData.password.length < 8) {
-            newErrors.password = 'Password must be at least 8 characters';
-        } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(formData.password)) {
-            newErrors.password = 'Password must contain uppercase, lowercase, and number';
-        }
+    if (!result.success) {
+      setErrors({ general: result.message || 'Invalid OTP' });
+      setOtp('');
+      return;
+    }
 
-        if (!formData.confirmPassword) {
-            newErrors.confirmPassword = 'Please confirm your password';
-        } else if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = 'Passwords do not match';
-        }
+    setSuccessMessage(result.message || 'Your account is ready.');
+    setParentVerifyUrl(result.parentVerifyUrl || null);
 
-        if (!formData.agreeToTerms) {
-            newErrors.agreeToTerms = 'You must agree to the terms and conditions';
-        }
+    if (role === 'parent') {
+      showToast('success', 'Account created', 'Your parent account is ready.', 1200);
+      setTimeout(() => navigate('/parent/dashboard'), 700);
+      return;
+    }
 
-        if (formData.role === 'teen') {
-            if (!formData.parentEmail?.trim()) {
-                newErrors.parentEmail = 'Parent email is required so they can approve your account';
-            } else if (!/\S+@\S+\.\S+/.test(formData.parentEmail.trim())) {
-                newErrors.parentEmail = 'Please enter a valid parent email';
-            }
-        }
+    if (result.parentVerifyUrl) {
+      setStep('success');
+      showToast('success', 'Account created', 'Parent approval link is ready in development.', 2000);
+      return;
+    }
 
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
+    showToast('success', 'Account created', 'Welcome to AfterBell!', 1200);
+    setTimeout(() => navigate('/skills'), 700);
+  };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setHasSubmitted(true);
-        if (!validateForm()) return;
-        setIsLoading(true);
-        setParentVerifyUrl(null);
-        setSignupSuccess(false);
-        const result = await register({
-            name: `${formData.firstName.trim()} ${formData.lastName.trim()}`.trim(),
-            email: formData.email,
-            password: formData.password,
-            role: formData.role,
-            parentEmail: formData.role === 'teen' ? formData.parentEmail.trim() : undefined,
-            parentPhone: formData.role === 'teen' && formData.parentPhone?.trim() ? formData.parentPhone.trim() : undefined,
-        });
-        setIsLoading(false);
-        if (result.success) {
-            setSignupSuccess(true);
-            if (result.parentVerifyUrl) setParentVerifyUrl(result.parentVerifyUrl);
-            if (formData.role === 'parent') navigate('/parent/dashboard');
-            else if (!result.parentVerifyUrl) navigate('/skills');
-        } else {
-            setErrors({ submit: result.message || 'Registration failed' });
-        }
-    };
+  const handleResend = async () => {
+    if (resendCooldown > 0 || loading) return;
+    setOtp('');
+    await sendCode();
+  };
 
-    const getPasswordStrength = (password: string) => {
-        if (!password) return { strength: 0, color: 'bg-slate-600', text: '' };
+  return (
+    <div className="min-h-[calc(100vh-5rem)] relative overflow-hidden px-4 py-8 flex items-center justify-center">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(80,200,120,0.12),_transparent_25%),radial-gradient(circle_at_top_right,_rgba(59,130,246,0.12),_transparent_24%),linear-gradient(135deg,_rgba(15,23,42,0.92),_rgba(10,14,28,0.98))]" />
 
-        let strength = 0;
-        if (password.length >= 8) strength++;
-        if (/[a-z]/.test(password)) strength++;
-        if (/[A-Z]/.test(password)) strength++;
-        if (/\d/.test(password)) strength++;
-        if (/[^A-Za-z0-9]/.test(password)) strength++;
+      <motion.div
+        className="relative z-10 w-full max-w-5xl grid lg:grid-cols-2 gap-8 items-center"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="hidden lg:block text-white">
+          <div className="max-w-md">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-green/10 border border-secondary-green/30 text-secondary-green text-sm font-medium mb-6">
+              <FiUser className="w-4 h-4" />
+              Phone-first signup
+            </div>
+            <h1 className="text-4xl xl:text-5xl font-bold font-display mb-4 leading-tight">
+              Create an account with your phone and verify it in seconds.
+            </h1>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              Teens can still enter a parent email so the approval flow remains intact. No password is needed for phone-based accounts.
+            </p>
+          </div>
+        </div>
 
-        const strengthMap = {
-            1: { color: 'bg-red-500', text: 'Weak' },
-            2: { color: 'bg-orange-500', text: 'Fair' },
-            3: { color: 'bg-yellow-500', text: 'Good' },
-            4: { color: 'bg-blue-500', text: 'Strong' },
-            5: { color: 'bg-green-500', text: 'Very Strong' }
-        };
-
-        return { strength, ...strengthMap[strength as keyof typeof strengthMap] };
-    };
-
-    const passwordStrength = getPasswordStrength(formData.password);
-
-    return (
         <motion.div
-            className="h-[calc(100vh-5rem)] flex relative"
-            style={{ transform: 'none' }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.8 }}
+          className="w-full max-w-md mx-auto bg-slate-800/80 backdrop-blur-xl border border-slate-700/60 rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/20"
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
         >
-            {/* Left Side - Image Section */}
-            <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden flex-shrink-0">
-                {/* Background Image */}
-                <div className="absolute inset-0 overflow-hidden flex items-center justify-center">
-                    <img
-                        src="/LoginPicture.png"
-                        alt="AfterBell Learning"
-                        className="max-w-[90%] max-h-[90%] w-auto h-auto object-contain object-center"
-                    />
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900/40 via-slate-800/20 to-transparent" />
+          <div className="text-center mb-6">
+            <img src="/Logo.png" alt="AfterBell" className="h-10 w-auto mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white">Join AfterBell</h2>
+            <p className="text-slate-400 text-sm mt-1">Use your phone number and a 6-digit code</p>
+          </div>
+
+          {step === 'details' ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">First name</label>
+                  <input
+                    value={firstName}
+                    onChange={event => {
+                      setFirstName(event.target.value);
+                      setErrors(previous => ({ ...previous, firstName: '' }));
+                    }}
+                    placeholder="First name"
+                    className="w-full px-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                  />
+                  {errors.firstName && <p className="mt-2 text-sm text-red-400">{errors.firstName}</p>}
                 </div>
-
-                {/* Interactive Floating Elements */}
-                <div className="absolute inset-0 pointer-events-none">
-                    {/* Glowing Orbs */}
-                    <motion.div
-                        className="absolute top-1/4 left-1/4 w-3 h-3 bg-secondary-green/60 rounded-full blur-sm"
-                        animate={{
-                            scale: [1, 1.5, 1],
-                            opacity: [0.6, 1, 0.6],
-                            y: [-10, 10, -10],
-                            x: [-5, 5, -5]
-                        }}
-                        transition={{
-                            duration: 4,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                        }}
-                    />
-                    <motion.div
-                        className="absolute top-1/3 right-1/3 w-2 h-2 bg-blue-400/50 rounded-full blur-sm"
-                        animate={{
-                            scale: [1, 1.8, 1],
-                            opacity: [0.4, 0.8, 0.4],
-                            y: [0, -15, 0],
-                            x: [0, 8, 0]
-                        }}
-                        transition={{
-                            duration: 3.5,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 1
-                        }}
-                    />
-                    <motion.div
-                        className="absolute bottom-1/3 left-1/3 w-2.5 h-2.5 bg-purple-400/40 rounded-full blur-sm"
-                        animate={{
-                            scale: [1, 1.3, 1],
-                            opacity: [0.5, 0.9, 0.5],
-                            y: [0, 12, 0],
-                            x: [0, -8, 0]
-                        }}
-                        transition={{
-                            duration: 5,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 2
-                        }}
-                    />
-
-                    {/* Floating Particles */}
-                    <motion.div
-                        className="absolute top-1/5 right-1/4 w-1 h-1 bg-white/30 rounded-full"
-                        animate={{
-                            y: [0, -20, 0],
-                            opacity: [0.3, 0.8, 0.3],
-                            scale: [1, 1.2, 1]
-                        }}
-                        transition={{
-                            duration: 6,
-                            repeat: Infinity,
-                            ease: "easeInOut"
-                        }}
-                    />
-                    <motion.div
-                        className="absolute bottom-1/4 right-1/5 w-1 h-1 bg-secondary-green/40 rounded-full"
-                        animate={{
-                            y: [0, 25, 0],
-                            opacity: [0.4, 0.7, 0.4],
-                            scale: [1, 1.5, 1]
-                        }}
-                        transition={{
-                            duration: 4.5,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 1.5
-                        }}
-                    />
-                    <motion.div
-                        className="absolute top-1/2 left-1/5 w-1 h-1 bg-blue-300/50 rounded-full"
-                        animate={{
-                            y: [0, -15, 0],
-                            x: [0, 10, 0],
-                            opacity: [0.3, 0.6, 0.3]
-                        }}
-                        transition={{
-                            duration: 5.5,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 2.5
-                        }}
-                    />
-
-                    {/* Sparkle Effects */}
-                    <motion.div
-                        className="absolute top-1/3 left-1/2 w-1.5 h-1.5 bg-yellow-300/60 rounded-full"
-                        animate={{
-                            scale: [0, 1, 0],
-                            opacity: [0, 1, 0],
-                            rotate: [0, 180, 360]
-                        }}
-                        transition={{
-                            duration: 3,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 0.5
-                        }}
-                    />
-                    <motion.div
-                        className="absolute bottom-1/3 right-1/2 w-1 h-1 bg-white/70 rounded-full"
-                        animate={{
-                            scale: [0, 1.5, 0],
-                            opacity: [0, 0.8, 0],
-                            rotate: [0, -180, -360]
-                        }}
-                        transition={{
-                            duration: 4,
-                            repeat: Infinity,
-                            ease: "easeInOut",
-                            delay: 1.8
-                        }}
-                    />
-
-                    {/* Energy Waves */}
-                    <motion.div
-                        className="absolute top-1/4 right-1/4 w-8 h-8 border border-secondary-green/20 rounded-full"
-                        animate={{
-                            scale: [1, 2, 1],
-                            opacity: [0.3, 0, 0.3]
-                        }}
-                        transition={{
-                            duration: 6,
-                            repeat: Infinity,
-                            ease: "easeOut"
-                        }}
-                    />
-                    <motion.div
-                        className="absolute bottom-1/4 left-1/4 w-6 h-6 border border-blue-400/20 rounded-full"
-                        animate={{
-                            scale: [1, 1.8, 1],
-                            opacity: [0.4, 0, 0.4]
-                        }}
-                        transition={{
-                            duration: 5,
-                            repeat: Infinity,
-                            ease: "easeOut",
-                            delay: 2
-                        }}
-                    />
-
-                    {/* Connection Lines */}
-                    <svg className="absolute inset-0 w-full h-full pointer-events-none">
-                        <motion.line
-                            x1="25%"
-                            y1="30%"
-                            x2="35%"
-                            y2="40%"
-                            stroke="url(#gradient1)"
-                            strokeWidth="0.5"
-                            opacity="0.3"
-                            animate={{
-                                opacity: [0.3, 0.6, 0.3],
-                                strokeDasharray: ["0,100", "100,0", "0,100"]
-                            }}
-                            transition={{
-                                duration: 8,
-                                repeat: Infinity,
-                                ease: "easeInOut"
-                            }}
-                        />
-                        <motion.line
-                            x1="65%"
-                            y1="60%"
-                            x2="75%"
-                            y2="70%"
-                            stroke="url(#gradient2)"
-                            strokeWidth="0.5"
-                            opacity="0.3"
-                            animate={{
-                                opacity: [0.3, 0.5, 0.3],
-                                strokeDasharray: ["0,100", "100,0", "0,100"]
-                            }}
-                            transition={{
-                                duration: 7,
-                                repeat: Infinity,
-                                ease: "easeInOut",
-                                delay: 3
-                            }}
-                        />
-                        <defs>
-                            <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
-                                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.3" />
-                            </linearGradient>
-                            <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity="0.4" />
-                                <stop offset="100%" stopColor="#10b981" stopOpacity="0.2" />
-                            </linearGradient>
-                        </defs>
-                    </svg>
+                <div>
+                  <label className="block text-sm text-slate-300 mb-2">Last name</label>
+                  <input
+                    value={lastName}
+                    onChange={event => {
+                      setLastName(event.target.value);
+                      setErrors(previous => ({ ...previous, lastName: '' }));
+                    }}
+                    placeholder="Last name"
+                    className="w-full px-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                  />
+                  {errors.lastName && <p className="mt-2 text-sm text-red-400">{errors.lastName}</p>}
                 </div>
-            </div>
+              </div>
 
-            {/* Right Side - Signup Form */}
-            <div className="flex-1 lg:w-1/2 flex items-center justify-center px-4 py-6 sm:px-6 md:px-8 lg:px-12 xl:px-16 overflow-y-auto relative" style={{ transform: 'none' }}>
-                {/* Decorative layer - does not block form inputs */}
-                <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {/* Enhanced Animated Background Elements */}
-                <motion.div
-                    className="absolute top-20 right-10 w-96 h-96 bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-full blur-3xl"
-                    animate={{
-                        x: [0, -120, 0],
-                        y: [0, 60, 0],
-                        scale: [1, 0.9, 1],
-                        rotate: [0, 180, 360]
-                    }}
-                    transition={{
-                        duration: 28,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-
-                <motion.div
-                    className="absolute bottom-20 left-10 w-80 h-80 bg-gradient-to-tr from-secondary-green/10 to-blue-500/10 rounded-full blur-3xl"
-                    animate={{
-                        x: [0, 90, 0],
-                        y: [0, -40, 0],
-                        scale: [1, 1.3, 1],
-                        rotate: [0, -180, -360]
-                    }}
-                    transition={{
-                        duration: 32,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 6
-                    }}
-                />
-
-                {/* Enhanced Floating Particles */}
-                <motion.div
-                    className="absolute top-1/4 right-1/4 w-3 h-3 bg-secondary-green rounded-full opacity-60 shadow-lg shadow-secondary-green/50"
-                    animate={{
-                        y: [0, -35, 0],
-                        x: [0, 15, 0],
-                        opacity: [0.6, 1, 0.6],
-                        scale: [1, 1.3, 1]
-                    }}
-                    transition={{
-                        duration: 5,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-1/3 left-1/4 w-2 h-2 bg-blue-400 rounded-full opacity-60 shadow-lg shadow-blue-400/50"
-                    animate={{
-                        y: [0, 25, 0],
-                        x: [0, -20, 0],
-                        opacity: [0.6, 1, 0.6],
-                        scale: [1, 1.4, 1]
-                    }}
-                    transition={{
-                        duration: 6,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 1
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/2 right-1/3 w-1.5 h-1.5 bg-purple-400 rounded-full opacity-70 shadow-lg shadow-purple-400/50"
-                    animate={{
-                        y: [0, -30, 0],
-                        x: [0, 25, 0],
-                        opacity: [0.7, 1, 0.7],
-                        scale: [1, 1.5, 1]
-                    }}
-                    transition={{
-                        duration: 7,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 2
-                    }}
-                />
-                <motion.div
-                    className="absolute bottom-1/4 right-1/5 w-2.5 h-2.5 bg-yellow-400 rounded-full opacity-50 shadow-lg shadow-yellow-400/50"
-                    animate={{
-                        y: [0, 40, 0],
-                        x: [0, -30, 0],
-                        opacity: [0.5, 0.9, 0.5],
-                        scale: [1, 1.2, 1]
-                    }}
-                    transition={{
-                        duration: 8,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 3
-                    }}
-                />
-                <motion.div
-                    className="absolute top-1/3 left-1/6 w-2 h-2 bg-pink-400 rounded-full opacity-60 shadow-lg shadow-pink-400/50"
-                    animate={{
-                        y: [0, -20, 0],
-                        x: [0, 18, 0],
-                        opacity: [0.6, 1, 0.6],
-                        scale: [1, 1.3, 1]
-                    }}
-                    transition={{
-                        duration: 9,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 4
-                    }}
-                />
-
-                {/* Floating Icons */}
-                <motion.div
-                    className="absolute top-1/6 left-1/6 text-secondary-green/30 text-2xl"
-                    animate={{
-                        y: [0, -20, 0],
-                        rotate: [0, 8, 0],
-                        opacity: [0.3, 0.7, 0.3]
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Infinity,
-                        ease: "easeInOut"
-                    }}
-                >
-                </motion.div>
-                <motion.div
-                    className="absolute bottom-1/6 right-1/6 text-blue-400/30 text-xl"
-                    animate={{
-                        y: [0, 25, 0],
-                        rotate: [0, -10, 0],
-                        opacity: [0.3, 0.8, 0.3]
-                    }}
-                    transition={{
-                        duration: 12,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 5
-                    }}
-                >
-                </motion.div>
-                <motion.div
-                    className="absolute top-2/3 left-1/5 text-purple-400/30 text-lg"
-                    animate={{
-                        y: [0, -22, 0],
-                        x: [0, 15, 0],
-                        rotate: [0, 15, 0],
-                        opacity: [0.3, 0.9, 0.3]
-                    }}
-                    transition={{
-                        duration: 11,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 3
-                    }}
-                >
-                </motion.div>
-                <motion.div
-                    className="absolute bottom-1/3 right-1/4 text-pink-400/30 text-lg"
-                    animate={{
-                        y: [0, 18, 0],
-                        x: [0, -12, 0],
-                        rotate: [0, -12, 0],
-                        opacity: [0.3, 0.6, 0.3]
-                    }}
-                    transition={{
-                        duration: 13,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 2
-                    }}
-                >
-                </motion.div>
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Email (optional)</label>
+                <div className="relative">
+                  <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={event => setEmail(event.target.value)}
+                    placeholder="name@example.com"
+                    className="w-full pl-10 pr-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                  />
                 </div>
-                {/* Signup Form Container - above decorative layer so inputs are clickable */}
-                <motion.div
-                    className="w-full max-w-md sm:max-w-lg md:max-w-xl relative z-10"
-                    style={{ transform: 'none' }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.8, delay: 0.2 }}
-                >
-                    <motion.div
-                        className="relative bg-slate-800/50 backdrop-blur-lg rounded-2xl p-6 sm:p-8 md:p-10 shadow-2xl border border-slate-700/50 max-h-[80vh] overflow-y-auto hover:border-secondary-green/30 transition-all duration-500"
-                        whileHover={{
-                            scale: 1.02,
-                            boxShadow: "0 25px 50px -12px rgba(80, 200, 120, 0.25)"
-                        }}
+                {errors.email && <p className="mt-2 text-sm text-red-400">{errors.email}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Phone number</label>
+                <div className="grid grid-cols-[160px_1fr] gap-3">
+                  <div className="relative">
+                    <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 pointer-events-none" />
+                    <select
+                      value={countryCode}
+                      onChange={event => setCountryCode(event.target.value)}
+                      className="w-full pl-10 pr-9 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white outline-none focus:border-secondary-green focus:ring-1 focus:ring-secondary-green appearance-none cursor-pointer text-sm font-medium"
                     >
+                      {COUNTRY_CODES.map(option => (
+                        <option key={option.value} value={option.value} className="bg-slate-900 text-white">
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    </div>
+                  </div>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={event => {
+                      setPhone(event.target.value);
+                      setErrors(previous => ({ ...previous, phone: '' }));
+                    }}
+                    placeholder="Enter phone number"
+                    className="w-full px-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                  />
+                </div>
+                {errors.phone && <p className="mt-2 text-sm text-red-400">{errors.phone}</p>}
+              </div>
 
+              <div>
+                <label className="block text-sm text-slate-300 mb-2">Account type</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setRole('teen')}
+                    className={`py-3 rounded-xl border transition-all ${role === 'teen' ? 'border-secondary-green bg-secondary-green/15 text-secondary-green' : 'border-slate-600 bg-slate-700/40 text-slate-300'}`}
+                  >
+                    Student
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRole('parent')}
+                    className={`py-3 rounded-xl border transition-all ${role === 'parent' ? 'border-secondary-green bg-secondary-green/15 text-secondary-green' : 'border-slate-600 bg-slate-700/40 text-slate-300'}`}
+                  >
+                    Parent
+                  </button>
+                </div>
+              </div>
 
-                        {/* Card content */}
-                        <div className="relative z-10">
-                            {/* Logo */}
-                            <motion.div
-                                className="text-center mb-6 sm:mb-8 md:mb-10"
-                                animate={isLogoPulsing ? {
-                                    scale: [1, 1.05, 1],
-                                    filter: ["brightness(1)", "brightness(1.2)", "brightness(1)"]
-                                } : {}}
-                                transition={{ duration: 0.6, ease: "easeInOut" }}
-                            >
-                                <Link to="/">
-                                    <motion.div
-                                        className="flex justify-center mb-3 sm:mb-4"
-                                        initial={{ opacity: 0, y: -20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ duration: 0.8 }}
-                                        whileHover={{ scale: 1.05 }}
-                                        whileTap={{ scale: 0.95 }}
-                                    >
-                                        <img
-                                            src="/Logo.png"
-                                            alt="AfterBell"
-                                            className="h-10 sm:h-12 md:h-14 w-auto cursor-pointer transition-all duration-300 hover:drop-shadow-lg hover:drop-shadow-secondary-green/50"
-                                        />
-                                    </motion.div>
-                                </Link>
-                                <motion.h1
-                                    className="text-2xl sm:text-3xl md:text-4xl font-bold font-display text-white mb-2 sm:mb-3 leading-tight"
-                                    initial={{ opacity: 0, y: -20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.8, delay: 0.2 }}
-                                >
-                                    Join the Learning Adventure!
-                                </motion.h1>
-                                <motion.p
-                                    className="text-slate-400 text-sm sm:text-base leading-relaxed tracking-wide"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ duration: 0.8, delay: 0.3 }}
-                                >
-                                    Create your account and unlock a world of exciting discoveries!
-                                    <motion.span
-                                        className="inline-block ml-1"
-                                        animate={{
-                                            rotate: [0, 15, -15, 0],
-                                            scale: [1, 1.2, 1]
-                                        }}
-                                        transition={{
-                                            duration: 3,
-                                            repeat: Infinity,
-                                            ease: "easeInOut",
-                                            delay: 2
-                                        }}
-                                    >
-                                    </motion.span>
-                                </motion.p>
-                            </motion.div>
+              {role === 'teen' && (
+                <>
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">Parent email</label>
+                    <div className="relative">
+                      <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                      <input
+                        type="email"
+                        value={parentEmail}
+                        onChange={event => {
+                          setParentEmail(event.target.value);
+                          setErrors(previous => ({ ...previous, parentEmail: '' }));
+                        }}
+                        placeholder="parent@example.com"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                      />
+                    </div>
+                    {errors.parentEmail && <p className="mt-2 text-sm text-red-400">{errors.parentEmail}</p>}
+                  </div>
 
-                            {/* Signup Form */}
-                            <motion.form
-                                className="space-y-4 md:space-y-5"
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.8, delay: 0.4 }}
-                                onSubmit={handleSubmit}
-                            >
-                                {/* Name Fields */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 lg:gap-5">
-                                    {/* First Name */}
-                                    <div className="relative group">
-                                        <motion.div
-                                            className="absolute -inset-1 bg-gradient-to-r from-secondary-green/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300 pointer-events-none"
-                                            initial={false}
-                                        />
-                                        <FiUser className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 transition-all duration-300 ${focusedField === 'firstName' ? 'text-secondary-green scale-110 drop-shadow-sm drop-shadow-secondary-green/50' : 'text-slate-300'} pointer-events-none`} />
-                                        <input
-                                            type="text"
-                                            value={formData.firstName}
-                                            onChange={(e) => handleInputChange('firstName', e.target.value)}
-                                            autoComplete="given-name"
-                                            onFocus={() => setFocusedField('firstName')}
-                                            onBlur={() => setFocusedField(null)}
-                                            className={`w-full pl-12 pr-4 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green focus:border-transparent transition-all duration-300 group-hover:border-slate-500/50 shadow-sm ${errors.firstName ? 'border-red-500 focus:ring-red-500' : 'border-slate-600/50'}`}
-                                            placeholder="Your First Name"
-                                            aria-describedby={errors.firstName ? "firstName-error" : undefined}
-                                        />
+                  <div>
+                    <label className="block text-sm text-slate-300 mb-2">Parent phone (optional)</label>
+                    <input
+                      type="tel"
+                      value={parentPhone}
+                      onChange={event => setParentPhone(event.target.value)}
+                      placeholder="Parent phone"
+                      className="w-full px-4 py-3 bg-slate-700/60 border border-slate-600 rounded-xl text-white placeholder-slate-400 outline-none focus:border-secondary-green"
+                    />
+                  </div>
+                </>
+              )}
 
-                                    </div>
+              {errors.general && <p className="text-sm text-red-400 text-center">{errors.general}</p>}
 
-                                    {/* Last Name */}
-                                    <div className="relative group">
-                                        <motion.div
-                                            className="absolute -inset-1 bg-gradient-to-r from-secondary-green/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300 pointer-events-none"
-                                            initial={false}
-                                        />
-                                        <FiUser className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 transition-all duration-300 ${focusedField === 'lastName' ? 'text-secondary-green scale-110 drop-shadow-sm drop-shadow-secondary-green/50' : 'text-slate-300'} pointer-events-none`} />
-                                        <input
-                                            type="text"
-                                            value={formData.lastName}
-                                            onChange={(e) => handleInputChange('lastName', e.target.value)}
-                                            autoComplete="family-name"
-                                            onFocus={() => setFocusedField('lastName')}
-                                            onBlur={() => setFocusedField(null)}
-                                            className={`w-full pl-12 pr-4 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green focus:border-transparent transition-all duration-300 group-hover:border-slate-500/50 shadow-sm ${errors.lastName ? 'border-red-500 focus:ring-red-500' : 'border-slate-600/50'}`}
-                                            placeholder="Your Last Name"
-                                            aria-describedby={errors.lastName ? "lastName-error" : undefined}
-                                        />
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={loading}
+                className="w-full py-3.5 rounded-xl bg-secondary-green text-white font-semibold hover:bg-emerald-500 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {loading ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiArrowRight className="w-4 h-4" />}
+                Send OTP
+              </button>
 
-                                    </div>
-                                </div>
-
-                                {/* Email */}
-                                <div className="relative group">
-                                    <motion.div
-                                        className="absolute -inset-1 bg-gradient-to-r from-secondary-green/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300 pointer-events-none"
-                                        initial={false}
-                                    />
-                                    <FiMail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 transition-all duration-300 ${focusedField === 'email' ? 'text-secondary-green scale-110 drop-shadow-sm drop-shadow-secondary-green/50' : 'text-slate-300'} pointer-events-none`} />
-                                    <input
-                                        type="email"
-                                        value={formData.email}
-                                        onChange={(e) => handleInputChange('email', e.target.value)}
-                                        autoComplete="email"
-                                        onFocus={() => setFocusedField('email')}
-                                        onBlur={() => setFocusedField(null)}
-                                        className={`w-full pl-12 pr-4 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green focus:border-transparent transition-all duration-300 group-hover:border-slate-500/50 shadow-sm ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-slate-600/50'}`}
-                                        placeholder="Your Email Address"
-                                        aria-describedby={errors.email ? "email-error" : undefined}
-                                    />
-                                </div>
-
-                                {/* I am a - theme-matched pill toggle */}
-                                <div className="flex gap-0 p-1 bg-slate-700/50 border border-slate-600/50 rounded-xl">
-                                    <label className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg cursor-pointer transition-all duration-300 ${formData.role === 'teen' ? 'bg-secondary-green/20 border border-secondary-green/50 text-secondary-green shadow-sm' : 'text-slate-400 hover:text-slate-300 border border-transparent'}`}>
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            checked={formData.role === 'teen'}
-                                            onChange={() => handleInputChange('role', 'teen')}
-                                            className="sr-only"
-                                        />
-                                        <span className="font-medium">Student</span>
-                                    </label>
-                                    <label className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg cursor-pointer transition-all duration-300 ${formData.role === 'parent' ? 'bg-secondary-green/20 border border-secondary-green/50 text-secondary-green shadow-sm' : 'text-slate-400 hover:text-slate-300 border border-transparent'}`}>
-                                        <input
-                                            type="radio"
-                                            name="role"
-                                            checked={formData.role === 'parent'}
-                                            onChange={() => handleInputChange('role', 'parent')}
-                                            className="sr-only"
-                                        />
-                                        <span className="font-medium">Parent</span>
-                                    </label>
-                                </div>
-
-                                {formData.role === 'teen' && (
-                                    <>
-                                        <div className="relative group">
-                                            <FiMail className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 ${focusedField === 'parentEmail' ? 'text-secondary-green' : 'text-slate-300'} pointer-events-none`} />
-                                            <input
-                                                type="email"
-                                                value={formData.parentEmail}
-                                                onChange={(e) => handleInputChange('parentEmail', e.target.value)}
-                                                onFocus={() => setFocusedField('parentEmail')}
-                                                onBlur={() => setFocusedField(null)}
-                                                className={`w-full pl-12 pr-4 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green relative z-10 ${errors.parentEmail ? 'border-red-500' : 'border-slate-600/50'}`}
-                                                placeholder="Parent's email (they will approve your account)"
-                                                autoComplete="email"
-                                            />
-                                            {errors.parentEmail && <p className="text-red-400 text-xs mt-1">{errors.parentEmail}</p>}
-                                        </div>
-                                        <div className="relative group">
-                                            <FiPhone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-300 pointer-events-none z-10" />
-                                            <input
-                                                type="tel"
-                                                value={formData.parentPhone}
-                                                onChange={(e) => handleInputChange('parentPhone', e.target.value)}
-                                                onFocus={() => setFocusedField('parentPhone')}
-                                                onBlur={() => setFocusedField(null)}
-                                                className="w-full pl-12 pr-4 py-2.5 sm:py-3 bg-slate-700/50 border border-slate-600/50 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green relative z-10"
-                                                placeholder="Parent's phone (optional)"
-                                                autoComplete="tel"
-                                            />
-                                        </div>
-                                    </>
-                                )}
-
-                                {/* Password */}
-                                <div className="relative group">
-                                    <motion.div
-                                        className="absolute -inset-1 bg-gradient-to-r from-secondary-green/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300 pointer-events-none"
-                                        initial={false}
-                                    />
-                                    <FiLock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 transition-all duration-300 ${focusedField === 'password' ? 'text-secondary-green scale-110 drop-shadow-sm drop-shadow-secondary-green/50' : 'text-slate-300'} pointer-events-none`} />
-                                    <input
-                                        type={showPassword ? "text" : "password"}
-                                        value={formData.password}
-                                        onChange={(e) => handleInputChange('password', e.target.value)}
-                                        onFocus={() => setFocusedField('password')}
-                                        onBlur={() => setFocusedField(null)}
-                                        className={`w-full pl-12 pr-12 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green focus:border-transparent transition-all duration-300 group-hover:border-slate-500/50 shadow-sm ${errors.password ? 'border-red-500 focus:ring-red-500' : formData.password ? (passwordStrength.strength <= 2 ? 'border-red-500' : passwordStrength.strength <= 3 ? 'border-yellow-500' : 'border-green-500') : 'border-slate-600/50'}`}
-                                        placeholder="Create Your Secret Password"
-                                        aria-describedby={errors.password ? "password-error" : undefined}
-                                    />
-                                    {/* Password Strength Indicator - Inside Input */}
-                                    {formData.password && (
-                                        <div className="absolute right-12 top-1/2 transform -translate-y-1/2 flex items-center space-x-1">
-                                            {[1, 2, 3, 4, 5].map((level) => (
-                                                <div
-                                                    key={level}
-                                                    className={`w-1 h-3 rounded-full transition-all duration-300 ${level <= passwordStrength.strength
-                                                        ? passwordStrength.color
-                                                        : 'bg-slate-600'
-                                                        }`}
-                                                />
-                                            ))}
-                                        </div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200 z-10"
-                                        aria-label={showPassword ? "Hide password" : "Show password"}
-                                    >
-                                        {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-
-                                {/* Confirm Password */}
-                                <div className="relative group">
-                                    <motion.div
-                                        className="absolute -inset-1 bg-gradient-to-r from-secondary-green/20 to-blue-500/20 rounded-xl opacity-0 group-hover:opacity-100 blur-sm transition-opacity duration-300 pointer-events-none"
-                                        initial={false}
-                                    />
-                                    <FiLock className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 z-10 transition-all duration-300 ${focusedField === 'confirmPassword' ? 'text-secondary-green scale-110 drop-shadow-sm drop-shadow-secondary-green/50' : 'text-slate-300'} pointer-events-none`} />
-                                    <input
-                                        type={showConfirmPassword ? "text" : "password"}
-                                        value={formData.confirmPassword}
-                                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                                        onFocus={() => setFocusedField('confirmPassword')}
-                                        onBlur={() => setFocusedField(null)}
-                                        className={`w-full pl-12 pr-12 py-2.5 sm:py-3 bg-slate-700/50 border rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-secondary-green focus:border-transparent transition-all duration-300 group-hover:border-slate-500/50 shadow-sm ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : formData.confirmPassword ? (formData.password === formData.confirmPassword ? 'border-green-500' : 'border-red-500') : 'border-slate-600/50'}`}
-                                        placeholder="Confirm Your Secret Password"
-                                        aria-describedby={errors.confirmPassword ? "confirmPassword-error" : undefined}
-                                    />
-                                    {/* Password Match Indicator - Inside Input */}
-                                    {formData.confirmPassword && (
-                                        <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
-                                            {formData.password === formData.confirmPassword ? (
-                                                <FiCheck className="w-4 h-4 text-green-400" />
-                                            ) : (
-                                                <div className="w-4 h-4 border-2 border-red-400 rounded-full" />
-                                            )}
-                                        </div>
-                                    )}
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors duration-200 z-10"
-                                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                                    >
-                                        {showConfirmPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
-                                    </button>
-                                </div>
-
-                                {/* Terms and Conditions */}
-                                <div className="space-y-3 sm:space-y-4">
-                                    <label className="flex items-start space-x-3 cursor-pointer group">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.agreeToTerms}
-                                            onChange={(e) => handleInputChange('agreeToTerms', e.target.checked)}
-                                            className="mt-1 w-4 h-4 text-secondary-green bg-slate-700 border-slate-600 rounded focus:ring-secondary-green focus:ring-2"
-                                        />
-                                        <div className="text-sm text-slate-300 group-hover:text-white transition-colors">
-                                            <span>I agree to the </span>
-                                            <a href="/terms" className="text-secondary-green hover:text-secondary-green/80 transition-colors font-medium">
-                                                Terms of Service
-                                            </a>
-                                            <span> and </span>
-                                            <a href="/privacy" className="text-secondary-green hover:text-secondary-green/80 transition-colors font-medium">
-                                                Privacy Policy
-                                            </a>
-                                        </div>
-                                    </label>
-
-                                </div>
-
-                                {/* Success: Parent must verify */}
-                                {signupSuccess && formData.role === 'teen' && (
-                                    <motion.div
-                                        className="p-4 bg-secondary-green/10 border border-secondary-green/30 rounded-lg"
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                    >
-                                        <p className="text-secondary-green font-medium">Account created!</p>
-                                        <p className="text-slate-300 text-sm mt-1">Ask your parent to check their email and approve your account.</p>
-                                        {parentVerifyUrl && (
-                                            <p className="text-slate-400 text-xs mt-2 break-all">
-                                                Dev link: <a href={parentVerifyUrl} className="text-secondary-green underline" target="_blank" rel="noreferrer">{parentVerifyUrl}</a>
-                                            </p>
-                                        )}
-                                    </motion.div>
-                                )}
-
-                                {/* Validation Error Message */}
-                                <AnimatePresence>
-                                    {hasSubmitted && Object.keys(errors).length > 0 && (
-                                        <motion.div
-                                            className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg"
-                                            initial={{ opacity: 0, y: -10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -10 }}
-                                        >
-                                            <div className="text-red-400 text-sm space-y-1">
-                                                {errors.firstName && <div>• {errors.firstName}</div>}
-                                                {errors.lastName && <div>• {errors.lastName}</div>}
-                                                {errors.email && <div>• {errors.email}</div>}
-                                                {errors.parentEmail && <div>• {errors.parentEmail}</div>}
-                                                {errors.password && <div>• {errors.password}</div>}
-                                                {errors.confirmPassword && <div>• {errors.confirmPassword}</div>}
-                                                {errors.agreeToTerms && <div>• {errors.agreeToTerms}</div>}
-                                                {errors.submit && <div>• {errors.submit}</div>}
-                                            </div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-
-                                {/* Sign Up Button */}
-                                <motion.button
-                                    type="submit"
-                                    disabled={isLoading}
-                                    className={`relative overflow-hidden w-full font-bold py-3 md:py-4 px-6 rounded-2xl transition-all duration-300 focus:outline-none focus:ring-4 focus:ring-secondary-green/50 focus:ring-offset-2 focus:ring-offset-slate-800 shadow-lg ${isLoading
-                                        ? 'bg-slate-600 text-slate-400 cursor-not-allowed'
-                                        : 'bg-gradient-to-r from-secondary-green to-emerald-500 text-white hover:shadow-2xl hover:shadow-secondary-green/30 hover:-translate-y-1'
-                                        }`}
-                                    whileHover={!isLoading ? { scale: 1.02, y: -2 } : {}}
-                                    whileTap={!isLoading ? { scale: 0.98 } : {}}
-                                >
-                                    <span className="relative z-10">
-                                        {isLoading ? (
-                                            <div className="flex items-center justify-center space-x-2">
-                                                <FiLoader className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
-                                                <span>Preparing Your Adventure...</span>
-                                            </div>
-                                        ) : (
-                                            'Start Your Learning Journey!'
-                                        )}
-                                    </span>
-                                    {!isLoading && (
-                                        <motion.div
-                                            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                                            initial={{ x: '-100%' }}
-                                            whileHover={{ x: '100%' }}
-                                            transition={{ duration: 0.6 }}
-                                        />
-                                    )}
-                                </motion.button>
-
-                                {/* Divider */}
-                                <div className="relative my-6 sm:my-8">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-slate-600/50" />
-                                    </div>
-                                    <div className="relative flex justify-center text-sm">
-                                        <span className="px-4 bg-slate-800/50 text-slate-400">OR CONTINUE WITH</span>
-                                    </div>
-                                </div>
-
-                                {/* Social Signup Buttons */}
-                                <div className="grid grid-cols-3 gap-3 sm:gap-4">
-                                    {/* Google */}
-                                    <motion.button
-                                        type="button"
-                                        className="flex items-center justify-center p-3 bg-slate-700/50 border border-slate-600/50 rounded-xl hover:bg-slate-600/50 hover:border-slate-500/50 transition-all duration-300 group relative overflow-hidden"
-                                        whileHover={{ scale: 1.05, y: -2 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        aria-label="Sign up with Google"
-                                    >
-                                        <FcGoogle className="w-5 h-5 transition-transform duration-300 group-hover:scale-110" />
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                    </motion.button>
-
-                                    {/* Facebook */}
-                                    <motion.button
-                                        type="button"
-                                        className="flex items-center justify-center p-3 bg-slate-700/50 border border-slate-600/50 rounded-xl hover:bg-slate-600/50 hover:border-slate-500/50 transition-all duration-300 group relative overflow-hidden"
-                                        whileHover={{ scale: 1.05, y: -2 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        aria-label="Sign up with Facebook"
-                                    >
-                                        <FaFacebook className="w-5 h-5 text-blue-500 transition-transform duration-300 group-hover:scale-110" />
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                    </motion.button>
-
-                                    {/* X (Twitter) */}
-                                    <motion.button
-                                        type="button"
-                                        className="flex items-center justify-center p-3 bg-slate-700/50 border border-slate-600/50 rounded-xl hover:bg-slate-600/50 hover:border-slate-500/50 transition-all duration-300 group relative overflow-hidden"
-                                        whileHover={{ scale: 1.05, y: -2 }}
-                                        whileTap={{ scale: 0.95 }}
-                                        aria-label="Sign up with X"
-                                    >
-                                        <FaTwitter className="w-5 h-5 text-blue-400 transition-transform duration-300 group-hover:scale-110" />
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                                    </motion.button>
-                                </div>
-                            </motion.form>
-
-                            {/* Login Link */}
-                            <motion.div
-                                className="mt-6 sm:mt-8 text-center"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.8, delay: 0.6 }}
-                            >
-                                <div className="text-sm text-slate-500">
-                                    Already have an account?{' '}
-                                    <Link
-                                        to="/login"
-                                        className="text-secondary-green hover:text-secondary-green/80 transition-colors duration-200 font-medium"
-                                    >
-                                        Sign In
-                                    </Link>
-                                </div>
-                            </motion.div>
-                        </div>
-                    </motion.div>
-                </motion.div>
+              <p className="text-center text-sm text-slate-400">
+                Already have an account?{' '}
+                <Link to="/login" className="text-secondary-green hover:text-emerald-400 font-semibold">
+                  Log in
+                </Link>
+              </p>
             </div>
+          ) : step === 'otp' ? (
+            <div className="space-y-4">
+              <div className="text-center">
+                <p className="text-slate-400 text-sm">Enter the 6-digit code sent to</p>
+                <p className="text-white font-semibold">{countryCode} {phone.trim()}</p>
+              </div>
+
+              <OTPInput
+                value={otp}
+                onChange={setOtp}
+                onComplete={verifyCode}
+                disabled={loading}
+              />
+
+              {errors.general && <p className="text-sm text-red-400 text-center">{errors.general}</p>}
+
+              <button
+                type="button"
+                onClick={() => void verifyCode()}
+                disabled={loading || otp.length !== 6}
+                className="w-full py-3.5 rounded-xl bg-secondary-green text-white font-semibold hover:bg-emerald-500 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {loading ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiArrowRight className="w-4 h-4" />}
+                Verify & Create Account
+              </button>
+
+              <div className="flex items-center justify-between text-sm">
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendCooldown > 0 || loading}
+                  className="inline-flex items-center gap-2 text-slate-300 hover:text-white disabled:opacity-50"
+                >
+                  <FiRefreshCw className="w-4 h-4" />
+                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStep('details');
+                    setOtp('');
+                    setErrors({});
+                  }}
+                  className="text-secondary-green hover:text-emerald-400"
+                >
+                  Edit details
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 text-center">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-secondary-green/10 border border-secondary-green/30 text-secondary-green text-sm font-medium mx-auto">
+                Account ready
+              </div>
+              <h3 className="text-2xl font-bold text-white">{successMessage}</h3>
+              {parentVerifyUrl && (
+                <div className="rounded-2xl border border-secondary-green/30 bg-secondary-green/10 p-4 text-left">
+                  <p className="text-secondary-green font-semibold mb-2">Parent verification link</p>
+                  <a href={parentVerifyUrl} target="_blank" rel="noreferrer" className="text-sm text-white underline break-all">
+                    {parentVerifyUrl}
+                  </a>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => navigate('/skills')}
+                className="w-full py-3.5 rounded-xl bg-secondary-green text-white font-semibold hover:bg-emerald-500 transition-all flex items-center justify-center gap-2"
+              >
+                Go to skills
+              </button>
+            </div>
+          )}
         </motion.div>
-    );
+      </motion.div>
+    </div>
+  );
 };
 
 export default SignUpPage;
