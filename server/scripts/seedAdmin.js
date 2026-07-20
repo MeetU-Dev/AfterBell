@@ -1,3 +1,9 @@
+const User = require('../models/User');
+
+const ADMIN_EMAIL = 'admin@afterbell.com';
+const ADMIN_PASSWORD = 'Admin@123';
+const ADMIN_NAME = 'AfterBell Admin';
+
 const seedAdmin = async () => {
   const existing = await User.findOne({ email: ADMIN_EMAIL });
   if (existing) {
