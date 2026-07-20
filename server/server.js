@@ -18,9 +18,19 @@ app.use(express.json({ limit: '10kb' }));
 // Cookie parser
 app.use(cookieParser());
 
-// Enable CORS
+// Enable CORS — supports comma-separated origins for Vercel preview deployments
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map(o => o.trim());
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 
