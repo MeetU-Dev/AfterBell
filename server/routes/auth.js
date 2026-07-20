@@ -7,9 +7,10 @@ const {
   getVerifyParentInfo,
   approveTeenByParent,
   getMe,
+  getUsers,
 } = require('../controllers/auth');
 const { sendOtp, verifyOtp } = require('../controllers/otpAuth');
-const { protect } = require('../middleware/auth');
+const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -58,5 +59,6 @@ router.post('/verify-otp', verifyOtpLimiter, verifyOtp);
 router.get('/verify-parent/:token', getVerifyParentInfo);
 router.post('/verify-parent', authLimiter, approveTeenByParent);
 router.get('/me', protect, getMe);
+router.get('/users', protect, authorize('admin'), getUsers);
 
 module.exports = router;

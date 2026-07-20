@@ -200,6 +200,54 @@ exports.getMe = async (req, res) => {
   res.status(200).json({ success: true, user: payload });
 };
 
+// @desc      Get all users (admin-only, paginated)
+// @route     GET /api/v1/auth/users
+// @access    Private/Admin
+exports.getUsers = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+    const filter = {};
+
+    if (req.query.search) {
+      const s = req.query.search.trim();
+      if (s) {
+        filter.$or = [
+          { name: { $regex: s, $options: 'i' } },
+          { email: { $regex: s, $options: 'i' } },
+          { phone: { $regex: s, $options: 'i' } },
+        ];
+      }
+    }
+
+    if (req.query.role && ['teen', 'parent', 'admin'].includes(req.query.role)) {
+      filter.role = req.query.role;
+    }
+
+    const [users, total] = await Promise.all([
+      User.find(filter)
+        .select('name email phone role xp level currentStreak verifiedByParent createdAt badges')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
+      User.countDocuments(filter),
+    ]);
+
+    res.json({
+      success: true,
+      count: users.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
+      data: users.map(u => ({ ...u, id: u._id, _id: undefined })),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // Get token from model, create cookie and send response
 const sendTokenResponse = (user, statusCode, res) => {
   // Create token

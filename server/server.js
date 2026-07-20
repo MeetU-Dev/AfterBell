@@ -64,14 +64,33 @@ app.use('/api/v1/notifications', require('./routes/notifications'));
 
 // Reseed endpoint — logged-in admin can force re-seed via browser/curl
 const { protect, authorize } = require('./middleware/auth');
+const { logAdminAction } = require('./utils/adminAudit');
 app.post('/api/v1/admin/reseed', protect, authorize('admin'), async (req, res) => {
   try {
     const { seed } = require('./scripts/seedContent');
     await seed();
+    await logAdminAction(req.user, 'reseed', null, null, { timestamp: new Date().toISOString() });
     console.log('[reseed] Manual reseed complete.');
     res.json({ success: true, message: 'Reseeded successfully' });
   } catch (err) {
     console.error('[reseed] Error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Audit log endpoint
+const AdminAuditLog = require('./models/AdminAuditLog');
+app.get('/api/v1/admin/audit-log', protect, authorize('admin'), async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 20));
+    const skip = (page - 1) * limit;
+    const [logs, total] = await Promise.all([
+      AdminAuditLog.find().sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      AdminAuditLog.countDocuments(),
+    ]);
+    res.json({ success: true, count: logs.length, total, page, pages: Math.ceil(total / limit), data: logs });
+  } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 });

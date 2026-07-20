@@ -166,3 +166,131 @@ exports.deleteSkill = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// @desc      Check YouTube video statuses for all skills
+// @route     POST /api/v1/skills/check-videos
+// @access    Private/Admin
+exports.checkVideos = async (req, res) => {
+  try {
+    const recheck = req.query.recheck === 'true';
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+    let query = {};
+    if (!recheck) {
+      query = {
+        $or: [
+          { lastVideoCheck: { $exists: false } },
+          { lastVideoCheck: null },
+          { lastVideoCheck: { $lt: oneHourAgo } },
+        ],
+      };
+    }
+
+    const skills = await Skill.find(query).lean();
+
+    const extractVideoId = (str) => {
+      if (!str) return null;
+      const m = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|watch\?v=))([^&?#"'\s]+)/);
+      return m ? m[1] : null;
+    };
+
+    const results = [];
+    const videoIdSet = new Set();
+
+    for (const skill of skills) {
+      const vidFromUrl = extractVideoId(skill.videoUrl);
+      if (vidFromUrl) {
+        videoIdSet.add(vidFromUrl);
+        results.push({
+          skillId: skill._id,
+          skillTitle: skill.title,
+          videoUrl: skill.videoUrl,
+          videoId: vidFromUrl,
+          status: 'pending',
+          stepIndex: null,
+        });
+      }
+
+      if (skill.steps && skill.steps.length > 0) {
+        skill.steps.forEach((step, idx) => {
+          const vidFromStep = extractVideoId(step.content);
+          if (vidFromStep) {
+            videoIdSet.add(vidFromStep);
+            results.push({
+              skillId: skill._id,
+              skillTitle: skill.title,
+              videoUrl: step.content,
+              videoId: vidFromStep,
+              status: 'pending',
+              stepIndex: idx,
+            });
+          }
+        });
+      }
+    }
+
+    const statusMap = {};
+    const fetchPromises = Array.from(videoIdSet).map(async (id) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+      try {
+        const resp = await fetch(
+          `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${id}&format=json`,
+          { signal: controller.signal }
+        );
+        if (resp.status === 200) {
+          statusMap[id] = 'ok';
+        } else if (resp.status === 404 || resp.status === 401) {
+          statusMap[id] = 'not_found';
+        } else {
+          statusMap[id] = 'error';
+        }
+      } catch {
+        statusMap[id] = 'error';
+      } finally {
+        clearTimeout(timeout);
+      }
+    });
+
+    await Promise.all(fetchPromises);
+
+    for (const result of results) {
+      result.status = statusMap[result.videoId] || 'error';
+    }
+
+    const skillStatusMap = {};
+    for (const result of results) {
+      if (!skillStatusMap[result.skillId]) {
+        skillStatusMap[result.skillId] = result.status;
+      }
+    }
+
+    const now = new Date();
+    const updatePromises = skills.map((skill) => {
+      const status = skillStatusMap[skill._id] || 'no_video';
+      return Skill.findByIdAndUpdate(skill._id, {
+        lastVideoCheck: now,
+        videoStatus: status,
+      });
+    });
+
+    await Promise.all(updatePromises);
+
+    const summary = { ok: 0, not_found: 0, error: 0 };
+    for (const r of results) {
+      if (summary[r.status] !== undefined) summary[r.status]++;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        checkedAt: now.toISOString(),
+        total: skills.length,
+        results,
+        summary,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

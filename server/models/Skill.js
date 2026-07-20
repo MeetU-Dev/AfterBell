@@ -80,6 +80,8 @@ const SkillSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  lastVideoCheck: { type: Date },
+  videoStatus: { type: String, enum: ['ok', 'not_found', 'error', 'no_video'] },
 });
 
 SkillSchema.index({ title: 'text', description: 'text', tags: 'text' });
