@@ -9,17 +9,11 @@ dotenv.config({ path: './config/config.env' });
 
 // Connect to database
 connectDB().then(async () => {
-  // Auto-seed if database is empty (free alternative to Render shell)
-  const SkillDomain = require('./models/SkillDomain');
-  const count = await SkillDomain.countDocuments();
-  if (count === 0) {
-    const { seed } = require('./scripts/seedContent');
-    console.log('[autoSeed] Database empty — seeding...');
-    await seed();
-    console.log('[autoSeed] Seed complete.');
-  } else {
-    console.log('[autoSeed] Database already populated, skipping seed.');
-  }
+  // Auto-seed on every deploy (re-seeds content only — admin/demo accounts preserved)
+  const { seed } = require('./scripts/seedContent');
+  console.log('[autoSeed] Re-seeding content...');
+  await seed();
+  console.log('[autoSeed] Seed complete.');
 });
 
 const app = express();
