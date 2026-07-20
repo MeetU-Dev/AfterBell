@@ -72,7 +72,6 @@ const Header: React.FC = () => {
                             <>
                                 {user.role === 'admin' ? (
                                     <>
-                                        <MagicLink href="/admin">Content Manager</MagicLink>
                                         <MagicLink href="/skills">Teen App</MagicLink>
                                         <MagicLink href="/stories">Stories</MagicLink>
                                         <MagicLink href="/notes">Notes</MagicLink>
@@ -157,7 +156,6 @@ const Header: React.FC = () => {
                                 <>
                                     {user.role === 'admin' ? (
                                         <>
-                                            <Link to="/admin" className="text-secondary-green font-semibold hover:text-emerald-300 transition-colors">Content Manager</Link>
                                             <Link to="/skills" className="text-white hover:text-secondary-green transition-colors">Teen App</Link>
                                             <Link to="/stories" className="text-white hover:text-secondary-green transition-colors">Stories</Link>
                                             <Link to="/analytics" className="text-white hover:text-secondary-green transition-colors">Analytics</Link>
