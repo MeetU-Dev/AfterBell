@@ -9,8 +9,12 @@ dotenv.config({ path: './config/config.env' });
 
 // Connect to database
 connectDB().then(async () => {
-  // Auto-seed on every deploy (re-seeds content only — admin/demo accounts preserved)
+  // Auto-seed admin + teen accounts (idempotent)
+  const { seedAdmin } = require('./scripts/seedAdmin');
+  const { seedDemoTeen } = require('./scripts/seedDemoTeen');
   const { seed } = require('./scripts/seedContent');
+  await seedAdmin();
+  await seedDemoTeen();
   console.log('[autoSeed] Re-seeding content...');
   await seed();
   console.log('[autoSeed] Seed complete.');
