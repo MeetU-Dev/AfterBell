@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+server/config/config.env
+server/config/config.env.local
+*.log
+.DS_Store
+stats.html

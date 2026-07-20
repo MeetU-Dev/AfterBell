@@ -1,0 +1,13 @@
+
+[
+  {
+    "_id": "5d713995b721c3bb38c1f5d0",
+    "name": "Financial Literacy",
+    "description": "Learn the basics of managing your money, from budgeting and saving to understanding digital payments."
+  },
+  {
+    "_id": "5d713a66b721c3bb38c1f5d1",
+    "name": "Digital Literacy",
+    "description": "Become a responsible and effective digital citizen. Learn about online safety, basic coding, and how to use essential Google tools."
+  }
+]

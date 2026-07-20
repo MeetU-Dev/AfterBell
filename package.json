@@ -1,0 +1,16 @@
+{
+  "scripts": {
+    "install:all": "cd server && npm install && cd ../client && npm install",
+    "seed": "cd server && node scripts/seedAdmin.js && node scripts/seedPartners.js",
+    "seed:admin": "cd server && node scripts/seedAdmin.js",
+    "seed:partners": "cd server && node scripts/seedPartners.js",
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "lint": "cd client && npm run lint",
+    "predeploy": "npm run lint && npm run build"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11"
+  }
+}
