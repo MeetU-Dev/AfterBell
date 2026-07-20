@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useGamification } from '../context/GamificationContext';
 import GamificationPanel from './GamificationPanel';
 import NotificationBell from './NotificationBell';
+import EquippedBadge from './EquippedBadge';
 import { FiUser, FiLogOut } from 'react-icons/fi';
 import { useThrottle, LazyImage } from './PerformanceOptimizer';
 
@@ -12,7 +13,7 @@ const Header: React.FC = () => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const { user, logout } = useAuth();
-    const { updateStreak } = useGamification();
+    const { updateStreak, equippedBadge } = useGamification();
     const [didCheckin, setDidCheckin] = useState(false);
 
     useEffect(() => {
@@ -99,6 +100,7 @@ const Header: React.FC = () => {
                                     <Link to="/profile" className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors">
                                         <FiUser className="w-4 h-4" />
                                         <span className="text-sm">{user.name}</span>
+                                        {equippedBadge && <EquippedBadge icon={equippedBadge.icon} rarity={equippedBadge.rarity} size="xs" />}
                                         {user.role === 'admin' && (
                                             <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">Admin</span>
                                         )}
@@ -177,6 +179,7 @@ const Header: React.FC = () => {
                                     <Link to={user.role === 'parent' ? '/parent/dashboard' : '/profile'} className="flex items-center space-x-2 text-slate-300 hover:text-white transition-colors py-2">
                                         <FiUser className="w-4 h-4" />
                                         <span className="text-sm">{user.name}</span>
+                                        {equippedBadge && <EquippedBadge icon={equippedBadge.icon} rarity={equippedBadge.rarity} size="xs" />}
                                         {user.role === 'admin' && (
                                             <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40">Admin</span>
                                         )}

@@ -2,9 +2,31 @@ const User = require('../models/User');
 const SkillCompletion = require('../models/SkillCompletion');
 const ParentPreference = require('../models/ParentPreference');
 
+const BADGE_DEFINITIONS = [
+  { id: 'first-steps', name: 'First Steps', description: 'Complete your first skill', icon: '🎯', category: 'achievement', rarity: 'common' },
+  { id: 'skill-master', name: 'Skill Master', description: 'Complete 5 skills', icon: '🏆', category: 'achievement', rarity: 'rare' },
+  { id: 'dedicated-learner', name: 'Dedicated Learner', description: 'Complete 10 skills', icon: '👑', category: 'achievement', rarity: 'epic' },
+  { id: 'streak-3', name: 'Rising Star', description: '3-day learning streak', icon: '⭐', category: 'streak', rarity: 'common' },
+  { id: 'streak-7', name: 'Week Warrior', description: '7-day learning streak', icon: '🔥', category: 'streak', rarity: 'rare' },
+  { id: 'streak-30', name: 'Monthly Champion', description: '30-day learning streak', icon: '💎', category: 'streak', rarity: 'legendary' },
+  { id: 'gamer', name: 'Game On', description: 'Play 5 mini-games', icon: '🎮', category: 'skill', rarity: 'common' },
+  { id: 'pro-gamer', name: 'Pro Gamer', description: 'Play 20 mini-games', icon: '🕹️', category: 'skill', rarity: 'epic' },
+  { id: 'point-collector', name: 'Point Collector', description: 'Earn 500 XP', icon: '💰', category: 'achievement', rarity: 'rare' },
+  { id: 'xp-legend', name: 'XP Legend', description: 'Earn 2000 XP', icon: '🚀', category: 'achievement', rarity: 'legendary' },
+  { id: 'bookworm', name: 'Bookworm', description: 'Bookmark 5 skills', icon: '📚', category: 'learning', rarity: 'common' },
+  { id: 'social-learner', name: 'Social Learner', description: 'Share 3 skills', icon: '🤝', category: 'social', rarity: 'common' },
+];
+
+function resolveEquippedBadge(equippedBadgeId) {
+  if (!equippedBadgeId) return null;
+  const def = BADGE_DEFINITIONS.find(b => b.id === equippedBadgeId);
+  if (!def) return null;
+  return { id: def.id, name: def.name, icon: def.icon, rarity: def.rarity };
+}
+
 exports.getLinkedTeensWithProgress = async (req, res) => {
   try {
-    const parent = await User.findById(req.user.id).populate('linkedTeenIds', 'name email createdAt xp level currentStreak longestStreak badges totalSkillsCompleted totalGamesPlayed');
+    const parent = await User.findById(req.user.id).populate('linkedTeenIds', 'name email createdAt xp level currentStreak longestStreak badges totalSkillsCompleted totalGamesPlayed equippedBadgeId');
     const teenIds = (parent.linkedTeenIds || []).map(t => t._id);
     if (teenIds.length === 0) {
       return res.status(200).json({ success: true, teens: [] });
@@ -23,6 +45,7 @@ exports.getLinkedTeensWithProgress = async (req, res) => {
       currentStreak: teen.currentStreak || 0,
       longestStreak: teen.longestStreak || 0,
       badges: teen.badges || [],
+      equippedBadge: resolveEquippedBadge(teen.equippedBadgeId),
       totalSkillsCompleted: teen.totalSkillsCompleted || 0,
       totalGamesPlayed: teen.totalGamesPlayed || 0,
       completedSkills: completions
@@ -111,7 +134,7 @@ exports.getTeenDetail = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not authorized' });
     }
 
-    const teen = await User.findById(teenId).select('name email createdAt xp level currentStreak longestStreak badges achievements totalSkillsCompleted totalGamesPlayed lastActiveDate');
+    const teen = await User.findById(teenId).select('name email createdAt xp level currentStreak longestStreak badges achievements totalSkillsCompleted totalGamesPlayed lastActiveDate equippedBadgeId');
     if (!teen) return res.status(404).json({ success: false, message: 'Teen not found' });
 
     const completions = await SkillCompletion.find({ userId: teenId }).sort({ completedAt: -1 }).lean();
@@ -146,6 +169,7 @@ exports.getTeenDetail = async (req, res) => {
         currentStreak: teen.currentStreak || 0,
         longestStreak: teen.longestStreak || 0,
         badges: teen.badges || [],
+        equippedBadge: resolveEquippedBadge(teen.equippedBadgeId),
         totalSkillsCompleted: teen.totalSkillsCompleted || 0,
         totalGamesPlayed: teen.totalGamesPlayed || 0,
         lastActiveDate: teen.lastActiveDate,

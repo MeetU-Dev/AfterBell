@@ -58,17 +58,26 @@ export interface UserStats {
     lastActivityDate: string;
 }
 
+interface EquippedBadgeInfo {
+    id: string;
+    name: string;
+    icon: string;
+    rarity: 'common' | 'rare' | 'epic' | 'legendary';
+}
+
 interface GamificationContextType {
     userStats: UserStats;
     leaderboard: LeaderboardEntry[];
     recentBadges: Badge[];
     recentAchievements: Achievement[];
     loading: boolean;
+    equippedBadge: EquippedBadgeInfo | null;
     addPoints: (points: number, reason: string, action: string) => Promise<any>;
     checkBadges: (action: string, value?: number) => Promise<Badge[]>;
     checkAchievements: (action: string, value?: number) => Promise<Achievement[]>;
     unlockBadge: (badgeId: string) => Promise<void>;
     updateStreak: () => Promise<void>;
+    equipBadge: (badgeId: string | null) => Promise<void>;
     getLevelProgress: () => { current: number; next: number; percentage: number };
     getLeaderboardPosition: () => number;
     getBadgeById: (badgeId: string) => Badge | undefined;
@@ -94,6 +103,7 @@ export const GamificationProvider: React.FC<{ children: ReactNode }> = ({ childr
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [recentBadges, setRecentBadges] = useState<Badge[]>([]);
     const [recentAchievements, setRecentAchievements] = useState<Achievement[]>([]);
+    const [equippedBadge, setEquippedBadge] = useState<EquippedBadgeInfo | null>(null);
 
     const refreshProfile = useCallback(async () => {
         if (!user) return;
@@ -117,6 +127,7 @@ export const GamificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 totalGamesPlayed: d.totalGamesPlayed || 0,
                 lastActivityDate: d.lastActiveDate || new Date().toISOString(),
             });
+            setEquippedBadge(d.equippedBadge || null);
         } catch {
             const saved = localStorage.getItem('afterbell_gamification_stats');
             if (saved) {
@@ -222,6 +233,20 @@ export const GamificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const unlockBadge = async (badgeId: string) => {};
 
+    const equipBadge = async (badgeId: string | null) => {
+        try {
+            const res = await apiRequest('/api/v1/gamification/equip-badge', {
+                method: 'PUT',
+                body: JSON.stringify({ badgeId }),
+            });
+            if (res.data) {
+                setEquippedBadge(res.data.equippedBadge || null);
+            }
+        } catch {
+            // Revert on failure — no-op, context stays in previous state
+        }
+    };
+
     const updateStreak = async () => {
         try {
             const res = await apiRequest('/api/v1/gamification/checkin', { method: 'POST' });
@@ -263,9 +288,9 @@ export const GamificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
     const value: GamificationContextType = {
         userStats, leaderboard, recentBadges, recentAchievements, loading,
-        addPoints, checkBadges, checkAchievements, unlockBadge, updateStreak,
-        getLevelProgress, getLeaderboardPosition, getBadgeById,
-        getUnlockedBadges, getLockedBadges, refreshProfile,
+        equippedBadge, addPoints, checkBadges, checkAchievements, unlockBadge,
+        updateStreak, equipBadge, getLevelProgress, getLeaderboardPosition,
+        getBadgeById, getUnlockedBadges, getLockedBadges, refreshProfile,
     };
 
     return (

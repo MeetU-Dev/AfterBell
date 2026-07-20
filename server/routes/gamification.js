@@ -5,6 +5,7 @@ const {
   checkin,
   getLeaderboard,
   getBadges,
+  equipBadge,
 } = require('../controllers/gamification');
 const { protect } = require('../middleware/auth');
 
@@ -15,5 +16,6 @@ router.post('/award', protect, awardXp);
 router.post('/checkin', protect, checkin);
 router.get('/leaderboard', protect, getLeaderboard);
 router.get('/badges', protect, getBadges);
+router.put('/equip-badge', protect, equipBadge);
 
 module.exports = router;

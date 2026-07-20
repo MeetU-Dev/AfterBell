@@ -87,6 +87,7 @@ const UserSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  equippedBadgeId: { type: String, default: null },
   badges: [
     {
       name: String,

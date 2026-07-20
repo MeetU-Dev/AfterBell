@@ -40,7 +40,7 @@ const ProfilePage: React.FC = () => {
         updateProfile,
         updateStreak
     } = useUserData();
-    const { userStats } = useGamification();
+    const { userStats, equippedBadge, equipBadge } = useGamification();
     const [activeTab, setActiveTab] = useState('overview');
     const [badges, setBadges] = useState<any[]>([]);
     const [badgeTab, setBadgeTab] = useState<'all' | 'unlocked' | 'locked'>('all');
@@ -599,6 +599,7 @@ const ProfilePage: React.FC = () => {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {filteredBadges.map((badge: any) => {
                         const rc = rarityConfig[badge.rarity] || rarityConfig.common;
+                        const isEquipped = equippedBadge?.id === badge.id;
                         return (
                             <motion.div
                                 key={badge.id}
@@ -633,6 +634,18 @@ const ProfilePage: React.FC = () => {
                                 <span className={`absolute top-2 right-2 text-[9px] px-1.5 py-0.5 rounded-full bg-slate-800 border ${rc.border} text-slate-400`}>
                                     {rc.label}
                                 </span>
+                                {badge.unlocked && (
+                                    <button
+                                        onClick={() => equipBadge(isEquipped ? null : badge.id)}
+                                        className={`mt-2 w-full py-1 rounded-lg text-xs font-semibold transition-all ${
+                                            isEquipped
+                                                ? 'bg-secondary-green text-white'
+                                                : 'bg-slate-600/50 text-slate-300 hover:bg-secondary-green/20 hover:text-secondary-green'
+                                        }`}
+                                    >
+                                        {isEquipped ? 'Equipped' : 'Equip'}
+                                    </button>
+                                )}
                             </motion.div>
                         );
                     })}

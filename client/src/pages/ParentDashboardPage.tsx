@@ -4,11 +4,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { FiUser, FiBookOpen, FiCheckCircle, FiLoader, FiRefreshCw, FiTrash2, FiZap, FiAward, FiTrendingUp, FiSettings, FiX, FiChevronRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
 import { getApiUrl } from '../api/client';
+import EquippedBadge from '../components/EquippedBadge';
 
 interface CompletedSkill {
   skillId: string;
   skillName: string;
   completedAt: string;
+}
+
+interface EquippedBadgeInfo {
+  id: string;
+  name: string;
+  icon: string;
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
 }
 
 interface Teen {
@@ -21,6 +29,7 @@ interface Teen {
   currentStreak: number;
   longestStreak: number;
   badges: any[];
+  equippedBadge?: EquippedBadgeInfo | null;
   totalSkillsCompleted: number;
   totalGamesPlayed: number;
   completedSkills: CompletedSkill[];
@@ -30,6 +39,7 @@ interface TeenDetail extends Teen {
   lastActiveDate: string;
   completedByMonth: Record<string, number>;
   weeklyActivity: { day: string; count: number }[];
+  equippedBadge?: EquippedBadgeInfo | null;
 }
 
 const rarityColors: Record<string, string> = {
@@ -142,7 +152,10 @@ const ParentDashboardPage: React.FC = () => {
               {selectedTeen.name.charAt(0)}
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white">{selectedTeen.name}</h2>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                {selectedTeen.name}
+                {selectedTeen.equippedBadge && <EquippedBadge icon={selectedTeen.equippedBadge.icon} rarity={selectedTeen.equippedBadge.rarity} size="xs" />}
+              </h2>
               <p className="text-slate-400 text-sm">{selectedTeen.email}</p>
             </div>
           </div>
@@ -311,7 +324,10 @@ const ParentDashboardPage: React.FC = () => {
                     {teen.name.charAt(0)}
                   </div>
                   <div>
-                    <h2 className="text-lg font-semibold text-white hover:text-secondary-green transition-colors">{teen.name}</h2>
+                    <h2 className="text-lg font-semibold text-white hover:text-secondary-green transition-colors flex items-center gap-2">
+                      {teen.name}
+                      {teen.equippedBadge && <EquippedBadge icon={teen.equippedBadge.icon} rarity={teen.equippedBadge.rarity} size="xs" />}
+                    </h2>
                     <p className="text-slate-400 text-xs">{teen.email} · Joined {formatDate(teen.joinedAt)}</p>
                   </div>
                 </div>

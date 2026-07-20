@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useUserData } from '../context/UserDataContext';
+import { useGamification } from '../context/GamificationContext';
 import { getApiUrl } from '../api/client';
+import EquippedBadge from '../components/EquippedBadge';
 import {
     FiUsers, FiBookOpen, FiAward, FiTrendingUp, FiClock, FiStar,
     FiCheckCircle, FiZap, FiActivity, FiBarChart, FiTarget, FiArrowUp, FiRefreshCw
@@ -13,6 +15,7 @@ const AdminDashboardPage: React.FC = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
     const { stats, activities } = useUserData();
+    const { equippedBadge } = useGamification();
     const [totalUsers, setTotalUsers] = useState(0);
     const [totalSkills, setTotalSkills] = useState(0);
     const [recentSignups, setRecentSignups] = useState<any[]>([]);
@@ -57,7 +60,10 @@ const AdminDashboardPage: React.FC = () => {
                     <div className="flex items-center justify-between mb-8">
                         <div>
                             <h1 className="text-3xl font-bold text-white">Admin Dashboard</h1>
-                            <p className="text-slate-400 mt-1">Welcome back, {user?.name}</p>
+                            <p className="text-slate-400 mt-1 flex items-center gap-2">
+                                Welcome back, {user?.name}
+                                {equippedBadge && <EquippedBadge icon={equippedBadge.icon} rarity={equippedBadge.rarity} size="xs" />}
+                            </p>
                         </div>
                         <div className="flex gap-3">
                             <motion.button

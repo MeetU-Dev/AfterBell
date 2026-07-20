@@ -40,7 +40,7 @@ function xpForNextLevel(level) {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('xp level currentStreak longestStreak lastActiveDate badges achievements points totalSkillsCompleted totalGamesPlayed');
+    const user = await User.findById(req.user.id).select('xp level currentStreak longestStreak lastActiveDate badges achievements points totalSkillsCompleted totalGamesPlayed equippedBadgeId');
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
     const nextLevelXp = xpForNextLevel(user.level);
@@ -48,6 +48,14 @@ exports.getProfile = async (req, res) => {
     const levelProgress = nextLevelXp - currentLevelXp > 0
       ? Math.min(100, Math.round(((user.xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100))
       : 0;
+
+    let equippedBadge = null;
+    if (user.equippedBadgeId) {
+      const def = BADGE_DEFINITIONS.find(b => b.id === user.equippedBadgeId);
+      if (def) {
+        equippedBadge = { id: def.id, name: def.name, icon: def.icon, rarity: def.rarity };
+      }
+    }
 
     res.json({
       success: true,
@@ -63,6 +71,8 @@ exports.getProfile = async (req, res) => {
         achievements: user.achievements || [],
         totalSkillsCompleted: user.totalSkillsCompleted,
         totalGamesPlayed: user.totalGamesPlayed,
+        equippedBadge,
+        equippedBadgeId: user.equippedBadgeId,
       },
     });
   } catch (err) {
@@ -277,6 +287,50 @@ exports.getBadges = async (req, res) => {
     }));
 
     res.json({ success: true, data: badges });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.equipBadge = async (req, res) => {
+  try {
+    const { badgeId } = req.body;
+
+    if (badgeId === null || badgeId === undefined) {
+      const user = await User.findById(req.user.id);
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+      user.equippedBadgeId = null;
+      await user.save();
+      return res.json({ success: true, data: { equippedBadge: null, equippedBadgeId: null } });
+    }
+
+    if (typeof badgeId !== 'string' || !badgeId.trim()) {
+      return res.status(400).json({ success: false, message: 'Invalid badge ID' });
+    }
+
+    const badgeDef = BADGE_DEFINITIONS.find(b => b.id === badgeId.trim());
+    if (!badgeDef) {
+      return res.status(400).json({ success: false, message: 'Badge not found' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    const hasBadge = (user.badges || []).some(b => b.name === badgeDef.id);
+    if (!hasBadge) {
+      return res.status(400).json({ success: false, message: 'You have not unlocked this badge yet' });
+    }
+
+    user.equippedBadgeId = badgeDef.id;
+    await user.save();
+
+    res.json({
+      success: true,
+      data: {
+        equippedBadge: { id: badgeDef.id, name: badgeDef.name, icon: badgeDef.icon, rarity: badgeDef.rarity },
+        equippedBadgeId: badgeDef.id,
+      },
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
