@@ -72,10 +72,11 @@ async function generateChatResponse(messages, context = {}) {
   }
 }
 
-async function generateQuiz(topic, count = 5) {
+async function generateQuiz(topic, count = 10, details = '') {
   const c = getClient();
 
-  const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" for teenagers.
+  const contextBlock = details ? `\n\nHere is the lesson content the student just studied:\n${details}\n\nBase the questions on this specific content.` : '';
+  const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" for teenagers.${contextBlock}
 Each question must have exactly 4 options and one correct answer.
 Return ONLY a JSON array (no markdown, no code fences):
 [

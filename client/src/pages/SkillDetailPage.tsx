@@ -61,6 +61,7 @@ const SkillDetailPage: React.FC = () => {
     const [aiQuizIndex, setAiQuizIndex] = useState(0);
     const [aiQuizScore, setAiQuizScore] = useState(0);
     const [aiQuizAnswered, setAiQuizAnswered] = useState(false);
+    const [aiQuizCompleted, setAiQuizCompleted] = useState(false);
     const [aiLoading, setAiLoading] = useState<'summary' | 'quiz' | null>(null);
     const [skillFromApi, setSkillFromApi] = useState<any>(null);
     const [relatedSkills, setRelatedSkills] = useState<any[]>([]);
@@ -190,7 +191,7 @@ const SkillDetailPage: React.FC = () => {
         const totalSteps = skill.steps.length;
         const allStepsCompleted = completedSteps.length === totalSteps;
 
-        if (allStepsCompleted) {
+        if (allStepsCompleted && aiQuizCompleted) {
             completeSkill(skillId, completedSteps, timeSpent, undefined, skill.title);
             addActivity('Completed', skill.title, skillId);
             addPoints(50, 'Skill completed', 'complete_skill');
@@ -268,11 +269,16 @@ const SkillDetailPage: React.FC = () => {
         if (!skill) return;
         setAiLoading('quiz');
         try {
-            const questions = await generateQuiz(skill.title, 5);
+            const details = skill.steps
+                .filter((s: any) => s.type === 'video')
+                .map((s: any) => `- ${s.title}: ${s.description || ''}`)
+                .join('\n');
+            const questions = await generateQuiz(skill.title, 10, details);
             setAiQuiz(questions);
             setAiQuizIndex(0);
             setAiQuizScore(0);
             setAiQuizAnswered(false);
+            setAiQuizCompleted(false);
         } finally {
             setAiLoading(null);
         }
@@ -293,6 +299,7 @@ const SkillDetailPage: React.FC = () => {
             setAiQuizIndex(prev => prev + 1);
             setAiQuizAnswered(false);
         } else {
+            setAiQuizCompleted(true);
             setAiQuiz(null);
         }
     };
@@ -417,17 +424,26 @@ const SkillDetailPage: React.FC = () => {
                                     ) : (
                                         <motion.button
                                             onClick={handleComplete}
-                                            className={`w-full py-4 px-6 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 ${isSkillCompleted(skillId || '')
+                                            disabled={!aiQuizCompleted}
+                                            className={`w-full py-4 px-6 rounded-2xl font-bold transition-all duration-300 flex items-center justify-center gap-3 ${
+                                                isSkillCompleted(skillId || '')
                                                 ? 'bg-secondary-green/20 text-secondary-green border-2 border-secondary-green/30'
-                                                : 'bg-gradient-to-r from-secondary-green to-emerald-500 text-white hover:shadow-lg hover:shadow-secondary-green/30'
-                                                }`}
-                                            whileHover={{ scale: 1.02 }}
-                                            whileTap={{ scale: 0.98 }}
+                                                : !aiQuizCompleted
+                                                    ? 'bg-slate-700/50 text-slate-400 border border-slate-600/50 cursor-not-allowed'
+                                                    : 'bg-gradient-to-r from-secondary-green to-emerald-500 text-white hover:shadow-lg hover:shadow-secondary-green/30'
+                                            }`}
+                                            whileHover={aiQuizCompleted && !isSkillCompleted(skillId || '') ? { scale: 1.02 } : {}}
+                                            whileTap={aiQuizCompleted && !isSkillCompleted(skillId || '') ? { scale: 0.98 } : {}}
                                         >
                                             {isSkillCompleted(skillId || '') ? (
                                                 <>
                                                     <FiCheckCircle className="w-5 h-5" />
                                                     Completed
+                                                </>
+                                            ) : !aiQuizCompleted ? (
+                                                <>
+                                                    <FiEdit3 className="w-5 h-5" />
+                                                    Pass Quiz to Complete
                                                 </>
                                             ) : (
                                                 <>

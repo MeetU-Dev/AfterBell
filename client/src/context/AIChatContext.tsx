@@ -155,11 +155,11 @@ export const AIChatProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [isTyping, isStreaming]);
 
-  const generateQuiz = useCallback(async (topic: string, count = 5): Promise<any[]> => {
+  const generateQuiz = useCallback(async (topic: string, count = 10, details = ''): Promise<any[]> => {
     try {
       const data = await apiRequest('/api/v1/ai/quiz', {
         method: 'POST',
-        body: JSON.stringify({ topic: topic.trim(), count }),
+        body: JSON.stringify({ topic: topic.trim(), count, details }),
       });
       return data.questions || [];
     } catch {

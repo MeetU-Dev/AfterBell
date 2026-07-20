@@ -165,12 +165,12 @@ exports.clearHistory = async (req, res) => {
 
 exports.quiz = async (req, res) => {
   try {
-    const { topic, count } = req.body;
+    const { topic, count, details } = req.body;
     if (!topic?.trim()) {
       return res.status(400).json({ success: false, message: 'Topic is required' });
     }
 
-    const questions = await generateQuiz(topic.trim(), Math.min(count || 5, 10));
+    const questions = await generateQuiz(topic.trim(), Math.min(count || 10, 20), details || '');
 
     res.status(200).json({
       success: true,
