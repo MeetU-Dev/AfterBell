@@ -60,7 +60,7 @@ exports.chat = async (req, res) => {
       sources: result.sources,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeResponse(err.message) });
   }
 };
 
@@ -123,9 +123,9 @@ exports.chatStream = async (req, res) => {
   } catch (err) {
     console.error('chatStream error:', err.message);
     if (!res.headersSent) {
-      res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: sanitizeResponse(err.message) });
     } else {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
+      res.write(`data: ${JSON.stringify({ error: sanitizeResponse(err.message) })}\n\n`);
       res.end();
     }
   }
@@ -150,7 +150,7 @@ exports.getHistory = async (req, res) => {
       messages: messages.reverse(),
     });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeResponse(err.message) });
   }
 };
 
@@ -159,7 +159,7 @@ exports.clearHistory = async (req, res) => {
     await ChatMessage.deleteMany({ userId: req.user.id });
     res.status(200).json({ success: true, message: 'Chat history cleared' });
   } catch (err) {
-    res.status(400).json({ success: false, message: err.message });
+    res.status(400).json({ success: false, message: sanitizeResponse(err.message) });
   }
 };
 
@@ -178,7 +178,7 @@ exports.quiz = async (req, res) => {
       questions,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeResponse(err.message) });
   }
 };
 
@@ -196,7 +196,7 @@ exports.summarize = async (req, res) => {
       summary,
     });
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: sanitizeResponse(err.message) });
   }
 };
 
