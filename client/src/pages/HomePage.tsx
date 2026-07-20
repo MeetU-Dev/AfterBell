@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { FiPlay, FiZap, FiCheckSquare, FiLoader, FiMail, FiSend, FiUser, FiMessageSquare } from 'react-icons/fi';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import HowItWorks from '../components/HowItWorks';
 import { useToast } from '../context/ToastContext';
 
