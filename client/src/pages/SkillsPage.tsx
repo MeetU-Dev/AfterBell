@@ -1,7 +1,7 @@
 import React, { useState, useMemo, memo, useCallback, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useUserData } from '../context/UserDataContext';
-import { VirtualList, DebouncedInput } from '../components/PerformanceOptimizer';
+import { VirtualList, DebouncedInput, SkeletonCard } from '../components/PerformanceOptimizer';
 import { useToast } from '../context/ToastContext';
 import { getApiUrl } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -745,7 +745,15 @@ const SkillsPage: React.FC = () => {
 
                     {/* Skills Grid/List */}
                     <div className="max-w-7xl mx-auto">
-                        {viewMode === 'grid' ? (
+                        {loadingSkills ? (
+                            <motion.div
+                                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                            >
+                                <SkeletonCard count={6} />
+                            </motion.div>
+                        ) : viewMode === 'grid' ? (
                             <motion.div
                                 className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8"
                                 initial={{ opacity: 0, y: 20 }}

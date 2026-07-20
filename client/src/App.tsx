@@ -2,6 +2,7 @@ import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Header from './components/Header';
 import TeenVerifyBanner from './components/TeenVerifyBanner';
+import OfflineIndicator from './components/OfflineIndicator';
 import ProtectedRoute from './components/ProtectedRoute';
 import { FloatingActionButtons } from './components/FloatingActionButtons';
 import { AuthProvider } from './context/AuthContext';
@@ -63,6 +64,7 @@ const AppContent: React.FC = () => {
             <div className="fixed inset-0 bg-gradient-to-br from-slate-900/80 via-slate-800/60 to-slate-900/80 z-0" />
 
             <Header />
+            <OfflineIndicator />
             <TeenVerifyBanner />
 
             {/* Main Content */}

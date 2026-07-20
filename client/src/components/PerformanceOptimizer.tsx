@@ -337,3 +337,30 @@ export const MemoizedComponent = React.memo<{
 ));
 
 MemoizedComponent.displayName = 'MemoizedComponent';
+
+export const SkeletonCard: React.FC<{ count?: number }> = ({ count = 6 }) => (
+  <>
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="bg-slate-800/50 backdrop-blur-lg rounded-3xl p-6 md:p-8 border border-slate-700/50 animate-pulse h-full">
+        <div className="flex items-start justify-between mb-4 md:mb-6">
+          <div className="flex items-center gap-3 md:gap-4">
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-2xl bg-slate-700/50" />
+            <div className="space-y-2">
+              <div className="h-4 w-32 bg-slate-700/50 rounded" />
+              <div className="h-3 w-20 bg-slate-700/50 rounded" />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-2 mb-6">
+          <div className="h-3 w-full bg-slate-700/50 rounded" />
+          <div className="h-3 w-3/4 bg-slate-700/50 rounded" />
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="h-3 w-16 bg-slate-700/50 rounded" />
+          <div className="h-3 w-16 bg-slate-700/50 rounded" />
+          <div className="h-3 w-16 bg-slate-700/50 rounded" />
+        </div>
+      </div>
+    ))}
+  </>
+);
