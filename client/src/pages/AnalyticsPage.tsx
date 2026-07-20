@@ -334,7 +334,7 @@ const AnalyticsPage: React.FC = () => {
         total: number;
         color: string;
     }> = ({ label, current, total, color }) => {
-        const percentage = (current / total) * 100;
+        const percentage = Math.min(100, (current / total) * 100);
         return (
             <div className="mb-4">
                 <div className="flex justify-between items-center mb-2">
