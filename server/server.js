@@ -18,18 +18,19 @@ app.use(express.json({ limit: '10kb' }));
 // Cookie parser
 app.use(cookieParser());
 
-// Enable CORS — supports comma-separated origins for Vercel preview deployments
+// Enable CORS — supports comma-separated origins + Vercel preview deployments
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
   .split(',')
   .map(o => o.trim());
 
+const previewPattern = /^https:\/\/after-bell-[a-z0-9]+-meetunaiop-3287s-projects\.vercel\.app$/;
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
+    if (!origin || allowedOrigins.includes(origin) || previewPattern.test(origin)) {
+      return callback(null, true);
     }
+    callback(null, false);
   },
   credentials: true,
 }));
