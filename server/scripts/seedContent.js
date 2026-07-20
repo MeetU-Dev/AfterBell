@@ -247,27 +247,30 @@ const skills = [
 ];
 
 async function seed() {
+  await SkillDomain.deleteMany({});
+  await Skill.deleteMany({});
+
+  const createdCategories = await SkillDomain.insertMany(categories);
+  console.log(`Created ${createdCategories.length} categories`);
+
+  const catMap = {};
+  createdCategories.forEach(c => { catMap[c.slug] = c._id; });
+
+  const skillsWithRefs = skills.map(s => ({
+    ...s,
+    categoryRef: catMap[s.category],
+  }));
+
+  const createdSkills = await Skill.insertMany(skillsWithRefs);
+  console.log(`Created ${createdSkills.length} skills`);
+
+  console.log('Seed complete!');
+}
+
+async function main() {
   try {
     await connectDB();
-
-    await SkillDomain.deleteMany({});
-    await Skill.deleteMany({});
-
-    const createdCategories = await SkillDomain.insertMany(categories);
-    console.log(`Created ${createdCategories.length} categories`);
-
-    const catMap = {};
-    createdCategories.forEach(c => { catMap[c.slug] = c._id; });
-
-    const skillsWithRefs = skills.map(s => ({
-      ...s,
-      categoryRef: catMap[s.category],
-    }));
-
-    const createdSkills = await Skill.insertMany(skillsWithRefs);
-    console.log(`Created ${createdSkills.length} skills`);
-
-    console.log('Seed complete!');
+    await seed();
     process.exit(0);
   } catch (err) {
     console.error('Seed error:', err);
@@ -275,4 +278,8 @@ async function seed() {
   }
 }
 
-seed();
+if (require.main === module) {
+  main();
+}
+
+module.exports = { seed, connectDB, categories, skills };
