@@ -106,10 +106,10 @@ const BadgesPage: React.FC = () => {
                     <div className="h-1 bg-slate-600 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-secondary-green to-emerald-500 rounded-full transition-all"
-                        style={{ width: `${badge.progress || 0}%` }}
+                        style={{ width: `${Math.min(badge.progress || 0, 100)}%` }}
                       />
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-1">{badge.progress || 0}%</p>
+                    <p className="text-[10px] text-slate-500 mt-1">{Math.min(badge.progress || 0, 100)}%</p>
                   </div>
                 )}
                 {badge.unlocked && badge.unlockedAt && (

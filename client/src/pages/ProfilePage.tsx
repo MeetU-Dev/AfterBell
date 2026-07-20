@@ -389,7 +389,7 @@ const ProfilePage: React.FC = () => {
                         <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
                             <div
                                 className="bg-secondary-green h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${(stats.completedSkills / stats.totalSkills) * 100}%` }}
+                                style={{ width: `${Math.min((stats.completedSkills / stats.totalSkills) * 100, 100)}%` }}
                             ></div>
                         </div>
                     </div>
@@ -400,7 +400,7 @@ const ProfilePage: React.FC = () => {
                         <div className="w-full bg-slate-700 rounded-full h-2 mt-2">
                             <div
                                 className="bg-blue-500 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${(stats.inProgress / stats.totalSkills) * 100}%` }}
+                                style={{ width: `${Math.min((stats.inProgress / stats.totalSkills) * 100, 100)}%` }}
                             ></div>
                         </div>
                     </div>
@@ -502,7 +502,7 @@ const ProfilePage: React.FC = () => {
                                                 <div className="w-full bg-slate-700 rounded-full h-1">
                                                     <div
                                                         className="bg-secondary-green h-1 rounded-full transition-all duration-300"
-                                                        style={{ width: `${((achievement.progress || 0) / achievement.maxProgress) * 100}%` }}
+                                                        style={{ width: `${Math.min(((achievement.progress || 0) / achievement.maxProgress) * 100, 100)}%` }}
                                                     ></div>
                                                 </div>
                                             </div>
