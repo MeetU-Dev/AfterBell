@@ -256,7 +256,37 @@ const SkillsPage: React.FC = () => {
     const [loadingSkills, setLoadingSkills] = useState(true);
     const [suggestions, setSuggestions] = useState<any[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const [recentSkillIds, setRecentSkillIds] = useState<string[]>(() => {
+        try { return JSON.parse(localStorage.getItem('recent_skills') || '[]'); } catch { return []; }
+    });
     const searchRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        localStorage.setItem('recent_skills', JSON.stringify(recentSkillIds));
+    }, [recentSkillIds]);
+
+    const trackSkillVisit = (skillId: string) => {
+        setRecentSkillIds(prev => {
+            const filtered = prev.filter(id => id !== skillId);
+            return [skillId, ...filtered].slice(0, 10);
+        });
+    };
+
+    const resumeSkills = useMemo(() => {
+        const completed = completedSkillsData || [];
+        const completedIds = new Set(completed.map(c => c.skillId));
+        const recent = recentSkillIds
+            .filter(id => !completedIds.has(id))
+            .map(id => effectiveSkills.find(s => String(s.id) === id))
+            .filter(Boolean)
+            .slice(0, 3);
+        const recentCompleted = effectiveSkills
+            .filter(s => completedIds.has(String(s.id)))
+            .slice(0, 3);
+        return { inProgress: recent, completed: recentCompleted };
+    }, [recentSkillIds, effectiveSkills, completedSkillsData]);
+
+    const hasResume = resumeSkills.inProgress.length > 0 || resumeSkills.completed.length > 0;
 
     // Fetch autocomplete suggestions
     useEffect(() => {
@@ -323,6 +353,7 @@ const SkillsPage: React.FC = () => {
         unbookmarkSkill,
         isSkillBookmarked,
         isSkillCompleted,
+        completedSkills: completedSkillsData,
         getSkillProgress,
         addActivity
     } = useUserData();
@@ -490,6 +521,7 @@ const SkillsPage: React.FC = () => {
 
     // Navigate to skill detail page
     const openSkillDetail = (skill: any) => {
+        trackSkillVisit(String(skill.id));
         navigate(`/skills/${skill.id}`);
     };
 
@@ -602,6 +634,81 @@ const SkillsPage: React.FC = () => {
                     </div>
                 </motion.div>
 
+                {/* Resume Learning Section */}
+                {hasResume && (
+                    <div className="container mx-auto px-4 pb-4 md:pb-6">
+                        <motion.div
+                            className="max-w-4xl mx-auto"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.6, delay: 0.75 }}
+                        >
+                            {resumeSkills.inProgress.length > 0 && (
+                                <div className="mb-6">
+                                    <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                                        <FiPlay className="w-4 h-4 text-secondary-green" />
+                                        Continue Learning
+                                    </h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        {resumeSkills.inProgress.map((skill: any) => {
+                                            const cat = skillCategories.find(c => c.id === skill.category);
+                                            const IconComp = cat?.icon || FiStar;
+                                            return (
+                                                <motion.button
+                                                    key={skill.id}
+                                                    onClick={() => { trackSkillVisit(String(skill.id)); navigate(`/skills/${skill.id}`); }}
+                                                    className="flex items-center gap-3 p-3 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/40 hover:border-secondary-green/40 transition-all text-left"
+                                                    whileHover={{ scale: 1.02, y: -2 }}
+                                                >
+                                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cat?.color || 'from-blue-500 to-purple-500'} flex items-center justify-center text-white flex-shrink-0`}>
+                                                        <IconComp className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-medium text-white truncate">{skill.title}</p>
+                                                        <p className="text-xs text-slate-400">{skill.duration}</p>
+                                                    </div>
+                                                    <FiPlay className="w-4 h-4 text-secondary-green flex-shrink-0" />
+                                                </motion.button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                            {resumeSkills.completed.length > 0 && (
+                                <div className="mb-4">
+                                    <h2 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+                                        <FiCheckCircle className="w-4 h-4 text-green-400" />
+                                        Recently Completed
+                                    </h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                        {resumeSkills.completed.map((skill: any) => {
+                                            const cat = skillCategories.find(c => c.id === skill.category);
+                                            const IconComp = cat?.icon || FiStar;
+                                            return (
+                                                <motion.button
+                                                    key={skill.id}
+                                                    onClick={() => navigate(`/skills/${skill.id}`)}
+                                                    className="flex items-center gap-3 p-3 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-green-500/20 hover:border-green-500/40 transition-all text-left"
+                                                    whileHover={{ scale: 1.02, y: -2 }}
+                                                >
+                                                    <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${cat?.color || 'from-green-500 to-emerald-500'} flex items-center justify-center text-white flex-shrink-0`}>
+                                                        <IconComp className="w-5 h-5" />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-sm font-medium text-white truncate">{skill.title}</p>
+                                                        <p className="text-xs text-green-400">Completed ✓</p>
+                                                    </div>
+                                                    <FiEye className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                                </motion.button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+
                 {/* Search and Filter Section */}
                 <div className="container mx-auto px-4 pb-4 md:pb-6">
                     <motion.div
@@ -640,6 +747,7 @@ const SkillsPage: React.FC = () => {
                                             key={`${s.type}-${i}`}
                                             onClick={() => {
                                                 if (s.type === 'skill' && s._id) {
+                                                    trackSkillVisit(s._id);
                                                     navigate(`/skills/${s._id}`);
                                                 } else {
                                                     setSearchQuery(s.text);
