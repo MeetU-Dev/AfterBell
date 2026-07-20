@@ -272,22 +272,6 @@ const SkillsPage: React.FC = () => {
         });
     };
 
-    const resumeSkills = useMemo(() => {
-        const completed = completedSkillsData || [];
-        const completedIds = new Set(completed.map(c => c.skillId));
-        const recent = recentSkillIds
-            .filter(id => !completedIds.has(id))
-            .map(id => effectiveSkills.find(s => String(s.id) === id))
-            .filter(Boolean)
-            .slice(0, 3);
-        const recentCompleted = effectiveSkills
-            .filter(s => completedIds.has(String(s.id)))
-            .slice(0, 3);
-        return { inProgress: recent, completed: recentCompleted };
-    }, [recentSkillIds, effectiveSkills, completedSkillsData]);
-
-    const hasResume = resumeSkills.inProgress.length > 0 || resumeSkills.completed.length > 0;
-
     // Fetch autocomplete suggestions
     useEffect(() => {
         if (!searchQuery.trim() || searchQuery.trim().length < 2) {
@@ -460,6 +444,22 @@ const SkillsPage: React.FC = () => {
         }
         return skillsData;
     }, [apiSkills, skillCategories, isSkillCompleted, isSkillBookmarked]);
+
+    const resumeSkills = useMemo(() => {
+        const completed = completedSkillsData || [];
+        const completedIds = new Set(completed.map(c => c.skillId));
+        const recent = recentSkillIds
+            .filter(id => !completedIds.has(id))
+            .map(id => effectiveSkills.find(s => String(s.id) === id))
+            .filter(Boolean)
+            .slice(0, 3);
+        const recentCompleted = effectiveSkills
+            .filter(s => completedIds.has(String(s.id)))
+            .slice(0, 3);
+        return { inProgress: recent, completed: recentCompleted };
+    }, [recentSkillIds, effectiveSkills, completedSkillsData]);
+
+    const hasResume = resumeSkills.inProgress.length > 0 || resumeSkills.completed.length > 0;
 
     const filteredSkills = useMemo(() => {
         let filtered = effectiveSkills.filter(skill => {
