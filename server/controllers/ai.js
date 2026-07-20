@@ -92,10 +92,17 @@ exports.chatStream = async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     let fullContent = '';
+    let isErrorResponse = false;
     await generateChatResponseStream(
       (chunk) => {
         fullContent += chunk;
-        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        if (!isErrorResponse && isImageError(fullContent)) {
+          isErrorResponse = true;
+          return;
+        }
+        if (!isErrorResponse) {
+          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+        }
       },
       messages,
       context || {}
@@ -108,7 +115,7 @@ exports.chatStream = async (req, res) => {
       context: context || {},
     });
 
-    if (isImageError(fullContent)) {
+    if (isErrorResponse) {
       res.write(`data: ${JSON.stringify({ clear: true, content: sanitizeResponse(fullContent) })}\n\n`);
     } else {
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
