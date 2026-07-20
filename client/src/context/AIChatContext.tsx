@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
-import { apiRequest } from '../api/client';
+import { apiRequest, getApiUrl } from '../api/client';
 
 interface ChatMessage {
   id: string;
@@ -78,7 +78,7 @@ export const AIChatProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     try {
       const token = localStorage.getItem('afterbell_token');
-      const res = await fetch('/api/v1/ai/chat/stream', {
+      const res = await fetch(`${getApiUrl()}/api/v1/ai/chat/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
