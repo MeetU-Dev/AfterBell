@@ -6,6 +6,8 @@ const IMAGE_ERROR_PATTERNS = [
   'cannot read image',
   'cannot process image',
   'image input is not supported',
+  'image inputs are not supported',
+  'this model only supports text',
 ];
 
 function isImageError(text) {
@@ -53,7 +55,7 @@ exports.chat = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: result.content,
+      message: sanitizeResponse(result.content),
       sources: result.sources,
     });
   } catch (err) {
