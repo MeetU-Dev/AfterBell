@@ -70,14 +70,15 @@ const Header: React.FC = () => {
                         <MagicLink href="/">Home</MagicLink>
                         {user ? (
                             <>
-                                {user.role === 'admin' ? (
-                                    <>
-                                        <MagicLink href="/skills">Teen App</MagicLink>
-                                        <MagicLink href="/stories">Stories</MagicLink>
-                                        <MagicLink href="/notes">Notes</MagicLink>
-                                        <MagicLink href="/parent/dashboard">Parent Dashboard</MagicLink>
-                                    </>
-                                ) : user.role === 'parent' ? (
+                                    {user.role === 'admin' ? (
+                                        <>
+                                            <MagicLink href="/admin">Admin Dashboard</MagicLink>
+                                            <MagicLink href="/skills">Teen App</MagicLink>
+                                            <MagicLink href="/stories">Stories</MagicLink>
+                                            <MagicLink href="/notes">Notes</MagicLink>
+                                            <MagicLink href="/parent/dashboard">Parent Dashboard</MagicLink>
+                                        </>
+                                    ) : user.role === 'parent' ? (
                                     <MagicLink href="/parent/dashboard">Parent Dashboard</MagicLink>
                                 ) : (
                                     <>
@@ -85,7 +86,7 @@ const Header: React.FC = () => {
                                         <MagicLink href="/stories">Stories</MagicLink>
                                         <MagicLink href="/analytics">Analytics</MagicLink>
                                         <MagicLink href="/notes">Notes</MagicLink>
-                                        <MagicLink href="/badges">Badges</MagicLink>
+                                        <MagicLink href="/profile">Profile</MagicLink>
                                     </>
                                 )}
                                 {user.role === 'teen' && (
@@ -156,6 +157,7 @@ const Header: React.FC = () => {
                                 <>
                                     {user.role === 'admin' ? (
                                         <>
+                                            <Link to="/admin" className="text-white hover:text-secondary-green transition-colors">Admin Dashboard</Link>
                                             <Link to="/skills" className="text-white hover:text-secondary-green transition-colors">Teen App</Link>
                                             <Link to="/stories" className="text-white hover:text-secondary-green transition-colors">Stories</Link>
                                             <Link to="/analytics" className="text-white hover:text-secondary-green transition-colors">Analytics</Link>

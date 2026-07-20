@@ -28,7 +28,6 @@ const NotesPage = lazy(() => import('./pages/NotesPage'));
 const VerifyParentPage = lazy(() => import('./pages/VerifyParentPage'));
 const ParentDashboardPage = lazy(() => import('./pages/ParentDashboardPage'));
 const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
-const BadgesPage = lazy(() => import('./pages/BadgesPage'));
 const NotificationPage = lazy(() => import('./pages/NotificationPage'));
 const AIChatBot = lazy(() => import('./components/AIChatBot'));
 
@@ -125,11 +124,7 @@ const AppContent: React.FC = () => {
                                 <NotesPage />
                             </ProtectedRoute>
                         } />
-                        <Route path="/badges" element={
-                            <ProtectedRoute>
-                                <BadgesPage />
-                            </ProtectedRoute>
-                        } />
+                        <Route path="/badges" element={<Navigate to="/profile" replace />} />
                         <Route path="/notifications" element={
                             <ProtectedRoute>
                                 <NotificationPage />

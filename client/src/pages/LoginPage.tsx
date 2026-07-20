@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FiArrowRight, FiLoader, FiLock, FiMail, FiPhone, FiRefreshCw, FiShield } from 'react-icons/fi';
+import { FiArrowRight, FiLoader, FiLock, FiMail, FiPhone, FiRefreshCw, FiShield, FiUser, FiUsers } from 'react-icons/fi';
 import { Link, useNavigate } from 'react-router-dom';
 import OTPInput from '../components/OTPInput';
 import { useAuth } from '../context/AuthContext';
@@ -372,6 +372,70 @@ const LoginPage: React.FC = () => {
                 Sign up
               </Link>
             </p>
+          </div>
+
+          {/* Quick Demo Login Buttons */}
+          <div className="mt-6 pt-6 border-t border-slate-700/40">
+            <p className="text-xs text-slate-500 text-center mb-3">Quick Demo Access</p>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  const result = await login('teenadmin@afterbell.com', 'TeenAdmin@123');
+                  setLoading(false);
+                  if (result.success) {
+                    showToast('success', 'Welcome!', 'Logged in as demo teen.');
+                    setTimeout(() => navigate('/skills'), 600);
+                  } else {
+                    showToast('error', 'Login Failed', result.message || 'Could not log in. Make sure the server is running.');
+                  }
+                }}
+                disabled={loading}
+                className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl bg-green-500/10 border border-green-500/30 text-green-400 hover:bg-green-500/20 transition-all disabled:opacity-50"
+              >
+                <FiUser className="w-4 h-4" />
+                <span className="text-xs font-semibold">Teen</span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  const result = await login('admin@afterbell.com', 'Admin@123');
+                  setLoading(false);
+                  if (result.success) {
+                    showToast('success', 'Welcome!', 'Logged in as admin.');
+                    setTimeout(() => navigate('/admin'), 600);
+                  } else {
+                    showToast('error', 'Login Failed', result.message || 'Could not log in. Make sure the server is running.');
+                  }
+                }}
+                disabled={loading}
+                className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500/20 transition-all disabled:opacity-50"
+              >
+                <FiShield className="w-4 h-4" />
+                <span className="text-xs font-semibold">Admin</span>
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setLoading(true);
+                  const result = await login('admin@afterbell.com', 'Admin@123');
+                  setLoading(false);
+                  if (result.success) {
+                    showToast('success', 'Welcome!', 'Logged in as parent.');
+                    setTimeout(() => navigate('/parent/dashboard'), 600);
+                  } else {
+                    showToast('error', 'Login Failed', result.message || 'Could not log in. Make sure the server is running.');
+                  }
+                }}
+                disabled={loading}
+                className="flex flex-col items-center gap-1 px-2 py-3 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-all disabled:opacity-50"
+              >
+                <FiUsers className="w-4 h-4" />
+                <span className="text-xs font-semibold">Parent</span>
+              </button>
+            </div>
           </div>
         </motion.div>
       </motion.div>
