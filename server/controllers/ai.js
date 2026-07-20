@@ -4,6 +4,7 @@ const { generateChatResponse, generateChatResponseStream, generateQuiz, summariz
 const IMAGE_ERROR_PATTERNS = [
   'does not support image input',
   'cannot read image',
+  'cannot read',
   'cannot process image',
   'image input is not supported',
   'image inputs are not supported',
@@ -92,17 +93,11 @@ exports.chatStream = async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     let fullContent = '';
-    let isErrorResponse = false;
+    const chunks = [];
     await generateChatResponseStream(
       (chunk) => {
         fullContent += chunk;
-        if (!isErrorResponse && isImageError(fullContent)) {
-          isErrorResponse = true;
-          return;
-        }
-        if (!isErrorResponse) {
-          res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-        }
+        chunks.push(chunk);
       },
       messages,
       context || {}
@@ -115,9 +110,13 @@ exports.chatStream = async (req, res) => {
       context: context || {},
     });
 
-    if (isErrorResponse) {
+    if (isImageError(fullContent)) {
+      chunks.length = 0;
       res.write(`data: ${JSON.stringify({ clear: true, content: sanitizeResponse(fullContent) })}\n\n`);
     } else {
+      for (const chunk of chunks) {
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
+      }
       res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
     }
     res.end();

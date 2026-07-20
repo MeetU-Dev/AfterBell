@@ -225,8 +225,11 @@ function sanitizeResponse(text) {
   const imageErrors = [
     'does not support image input',
     'cannot read image',
+    'cannot read',
     'cannot process image',
     'image input is not supported',
+    'image inputs are not supported',
+    'this model only supports text',
   ];
   if (imageErrors.some(e => text.toLowerCase().includes(e))) {
     return "I can only process text-based questions. Please describe what you'd like help with in words, and I'll be happy to assist!";
