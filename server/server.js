@@ -12,6 +12,9 @@ connectDB();
 
 const app = express();
 
+// Trust Render's proxy for rate limiter IP detection
+app.set('trust proxy', 1);
+
 // Body parser with size limit
 app.use(express.json({ limit: '10kb' }));
 
