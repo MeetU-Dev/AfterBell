@@ -96,6 +96,7 @@ export const AIChatProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let fullContent = '';
       let streamDone = false;
 
       while (!streamDone) {
@@ -113,28 +114,24 @@ export const AIChatProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             const data = JSON.parse(trimmed.slice(6));
             if (data.done) { streamDone = true; break; }
             if (data.clear) {
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantId
-                    ? { ...m, content: data.content }
-                    : m
-                )
-              );
+              fullContent = data.content;
               streamDone = true;
               break;
             }
             if (data.content) {
-              setMessages(prev =>
-                prev.map(m =>
-                  m.id === assistantId
-                    ? { ...m, content: m.content + data.content }
-                    : m
-                )
-              );
+              fullContent += data.content;
             }
           } catch {}
         }
       }
+
+      setMessages(prev =>
+        prev.map(m =>
+          m.id === assistantId
+            ? { ...m, content: fullContent }
+            : m
+        )
+      );
     } catch (err) {
       setMessages(prev =>
         prev.map(m =>
