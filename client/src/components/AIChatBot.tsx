@@ -164,17 +164,6 @@ const AIChatBot: React.FC = () => {
                       </div>
                     </div>
                   ))}
-                  {isTyping && messages[messages.length - 1]?.role === 'assistant' && !messages[messages.length - 1]?.content && (
-                    <div className="flex justify-start">
-                      <div className="bg-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <div className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   <div ref={messagesEndRef} />
                 </>
               )}
