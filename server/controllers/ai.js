@@ -93,33 +93,31 @@ exports.chatStream = async (req, res) => {
     res.setHeader('X-Accel-Buffering', 'no');
 
     let fullContent = '';
-    const chunks = [];
+
     await generateChatResponseStream(
       (chunk) => {
         fullContent += chunk;
-        chunks.push(chunk);
+        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
       },
       messages,
       context || {}
     );
 
+    const final = sanitizeResponse(fullContent);
+
+    if (isImageError(fullContent)) {
+      res.write(`data: ${JSON.stringify({ clear: true, content: final })}\n\n`);
+    }
+
+    res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+    res.end();
+
     await ChatMessage.create({
       userId: req.user.id,
       role: 'assistant',
-      content: sanitizeResponse(fullContent),
+      content: final,
       context: context || {},
     });
-
-    if (isImageError(fullContent)) {
-      chunks.length = 0;
-      res.write(`data: ${JSON.stringify({ clear: true, content: sanitizeResponse(fullContent) })}\n\n`);
-    } else {
-      for (const chunk of chunks) {
-        res.write(`data: ${JSON.stringify({ content: chunk })}\n\n`);
-      }
-      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-    }
-    res.end();
   } catch (err) {
     console.error('chatStream error:', err.message);
     if (!res.headersSent) {

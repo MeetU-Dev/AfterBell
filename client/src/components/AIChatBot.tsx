@@ -141,9 +141,7 @@ const AIChatBot: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {messages.map((msg) => {
-                    if (msg.role === 'assistant' && msg.streaming && !msg.content) return null;
-                    return (
+                  {messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                         msg.role === 'user'
@@ -158,16 +156,15 @@ const AIChatBot: React.FC = () => {
                           ) : (
                             msg.content
                           )}
-
+                          {msg.streaming && <span className="inline-block w-2 h-4 bg-emerald-400 ml-0.5 animate-pulse" />}
                         </div>
                         <div className={`text-xs mt-1 ${msg.role === 'user' ? 'text-emerald-200' : 'text-slate-500'}`}>
                           {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-                  {isTyping && (
+                  ))}
+                  {isTyping && messages[messages.length - 1]?.role === 'assistant' && !messages[messages.length - 1]?.content && (
                     <div className="flex justify-start">
                       <div className="bg-slate-700/50 rounded-2xl rounded-bl-md px-4 py-3">
                         <div className="flex space-x-1">
