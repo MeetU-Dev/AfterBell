@@ -1,23 +1,4 @@
-const OpenAI = require('openai');
-
-let client = null;
-
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
 const MODEL = 'inclusionai/ling-3.0-flash-fin:free';
-
-function getClient() {
-  if (!client && process.env.OPENROUTER_API_KEY) {
-    client = new OpenAI({
-      baseURL: OPENROUTER_BASE,
-      apiKey: process.env.OPENROUTER_API_KEY,
-      defaultHeaders: {
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'AfterBell',
-      },
-    });
-  }
-  return client;
-}
 
 function isConfigured() {
   return !!process.env.OPENROUTER_API_KEY;
@@ -73,7 +54,9 @@ async function generateChatResponse(messages, context = {}) {
 }
 
 async function generateQuiz(topic, count = 10, details = '') {
-  const c = getClient();
+  if (!process.env.OPENROUTER_API_KEY) {
+    return generateMockQuiz(topic, count);
+  }
 
   const contextBlock = details ? `\n\nHere is the lesson content the student just studied:\n${details}\n\nBase the questions on this specific content.` : '';
   const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" for teenagers.${contextBlock}
@@ -87,9 +70,16 @@ Return ONLY a JSON array (no markdown, no code fences):
   }
 ]`;
 
-  if (c) {
-    try {
-      const response = await c.chat.completions.create({
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'AfterBell',
+      },
+      body: JSON.stringify({
         model: MODEL,
         messages: [
           { role: 'system', content: 'You are a quiz generator for teenagers. Return ONLY valid JSON.' },
@@ -97,25 +87,40 @@ Return ONLY a JSON array (no markdown, no code fences):
         ],
         max_tokens: 1000,
         temperature: 0.8,
-      });
+      }),
+    });
 
-      const text = response.choices[0]?.message?.content || '';
-      const json = JSON.parse(text.replace(/```json|```/g, '').trim());
-      return Array.isArray(json) ? json : [];
-    } catch (err) {
-      console.error('Quiz generation error:', err.message);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Quiz OpenRouter error:', response.status, errText);
+      return generateMockQuiz(topic, count);
     }
-  }
 
-  return generateMockQuiz(topic, count);
+    const data = await response.json();
+    const text = data.choices?.[0]?.message?.content || '';
+    const json = JSON.parse(text.replace(/```json|```/g, '').trim());
+    return Array.isArray(json) ? json : generateMockQuiz(topic, count);
+  } catch (err) {
+    console.error('Quiz generation error:', err.message);
+    return generateMockQuiz(topic, count);
+  }
 }
 
 async function summarizeLesson(title, description) {
-  const c = getClient();
+  if (!process.env.OPENROUTER_API_KEY) {
+    return mockSummary(title, description);
+  }
 
-  if (c) {
-    try {
-      const response = await c.chat.completions.create({
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'AfterBell',
+      },
+      body: JSON.stringify({
         model: MODEL,
         messages: [
           { role: 'system', content: 'Summarize the following lesson for a teenager in 3-5 bullet points. Be clear and engaging.' },
@@ -123,15 +128,21 @@ async function summarizeLesson(title, description) {
         ],
         max_tokens: 300,
         temperature: 0.5,
-      });
+      }),
+    });
 
-      return response.choices[0]?.message?.content || 'Summary not available.';
-    } catch (err) {
-      console.error('Summarize error:', err.message);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Summarize OpenRouter error:', response.status, errText);
+      return mockSummary(title, description);
     }
-  }
 
-  return mockSummary(title, description);
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || 'Summary not available.';
+  } catch (err) {
+    console.error('Summarize error:', err.message);
+    return mockSummary(title, description);
+  }
 }
 
 async function generateChatResponseStream(onChunk, messages, context = {}) {
