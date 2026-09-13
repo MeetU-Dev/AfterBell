@@ -69,20 +69,16 @@ async function generateChatResponse(messages, context = {}) {
 
 async function generateQuiz(topic, count = 10, details = '') {
   if (!process.env.OPENROUTER_API_KEY) {
+    console.log('[quiz] No OPENROUTER_API_KEY, using mock');
     return generateMockQuiz(topic, count);
   }
 
   const contextBlock = details ? `\n\nHere is the lesson content the student just studied:\n${details}\n\nBase the questions on this specific content.` : '';
-  const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" for teenagers.${contextBlock}
-Each question must have exactly 4 options and one correct answer.
-Return ONLY a JSON array (no markdown, no code fences):
-[
-  {
-    "question": "Question text?",
-    "options": ["A) option1", "B) option2", "C) option3", "D) option4"],
-    "correctAnswer": "A) option1"
-  }
-]`;
+  const prompt = `Generate exactly ${count} multiple-choice quiz questions about "${topic}" for teenagers.${contextBlock}
+Each question MUST have exactly 4 options and one correct answer.
+Return ONLY a JSON array — no explanation, no markdown, no code fences.
+Example format:
+[{"question":"Q1?","options":["A) opt1","B) opt2","C) opt3","D) opt4"],"correctAnswer":"A) opt1"}]`;
 
   try {
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -96,32 +92,50 @@ Return ONLY a JSON array (no markdown, no code fences):
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: 'system', content: 'You are a quiz generator for teenagers. Return ONLY valid JSON.' },
+          { role: 'system', content: 'Return ONLY valid JSON arrays. No text before or after.' },
           { role: 'user', content: prompt },
         ],
-        max_tokens: 1000,
-        temperature: 0.8,
+        max_tokens: 2000,
+        temperature: 0.7,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Quiz OpenRouter error:', response.status, errText);
+      console.error('[quiz] OpenRouter HTTP error:', response.status, errText);
       return generateMockQuiz(topic, count);
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
-    const json = JSON.parse(text.replace(/```json|```/g, '').trim());
-    return Array.isArray(json) ? json : generateMockQuiz(topic, count);
+    const raw = data.choices?.[0]?.message?.content || '';
+    console.log('[quiz] Raw AI response (first 300):', raw.substring(0, 300));
+
+    // Extract JSON from markdown fences or plain text
+    let cleaned = raw.trim();
+    // Strip markdown code fences: ```json ... ``` or ``` ... ```
+    cleaned = cleaned.replace(/```[\s\S]*?\n([\s\S]*?)\n\s*```/g, '$1');
+    // Try to find a JSON array in the response
+    const arrayMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrayMatch) {
+      cleaned = arrayMatch[0];
+    }
+
+    const json = JSON.parse(cleaned);
+    if (Array.isArray(json) && json.length > 0) {
+      console.log('[quiz] Parsed', json.length, 'questions');
+      return json;
+    }
+    console.error('[quiz] Response was not a valid array:', cleaned.substring(0, 200));
+    return generateMockQuiz(topic, count);
   } catch (err) {
-    console.error('Quiz generation error:', err.message);
+    console.error('[quiz] Parse error:', err.message);
     return generateMockQuiz(topic, count);
   }
 }
 
 async function summarizeLesson(title, description) {
   if (!process.env.OPENROUTER_API_KEY) {
+    console.log('[summarize] No OPENROUTER_API_KEY, using mock');
     return mockSummary(title, description);
   }
 
@@ -137,24 +151,32 @@ async function summarizeLesson(title, description) {
       body: JSON.stringify({
         model: MODEL,
         messages: [
-          { role: 'system', content: 'Summarize the following lesson for a teenager in 3-5 bullet points. Be clear and engaging.' },
-          { role: 'user', content: `Title: ${title}\n\nDescription: ${description}` },
+          { role: 'system', content: 'You are a helpful tutor. Summarize the lesson in 3-5 clear bullet points for a teenager.' },
+          { role: 'user', content: `Summarize this lesson:\nTitle: ${title}\n\nDescription: ${description}` },
         ],
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0.5,
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Summarize OpenRouter error:', response.status, errText);
+      console.error('[summarize] OpenRouter HTTP error:', response.status, errText);
       return mockSummary(title, description);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || 'Summary not available.';
+    const content = data.choices?.[0]?.message?.content || '';
+    console.log('[summarize] Raw AI response (first 200):', content.substring(0, 200));
+
+    if (!content || content.trim().length === 0) {
+      console.error('[summarize] Empty response from AI');
+      return mockSummary(title, description);
+    }
+
+    return content;
   } catch (err) {
-    console.error('Summarize error:', err.message);
+    console.error('[summarize] Error:', err.message);
     return mockSummary(title, description);
   }
 }
