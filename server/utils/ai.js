@@ -3,7 +3,7 @@ const OpenAI = require('openai');
 let client = null;
 
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const MODEL = 'google/gemma-4-26b-a4b-it:free';
+const MODEL = 'inclusionai/ling-3.0-flash-fin:free';
 
 function getClient() {
   if (!client && process.env.OPENROUTER_API_KEY) {
