@@ -17,9 +17,7 @@ Guidelines:
 - Adapt your language to the user's age level`;
 
 async function generateChatResponse(messages, context = {}) {
-  const c = getClient();
-
-  if (!c) {
+  if (!process.env.OPENROUTER_API_KEY) {
     return mockChatResponse(messages, context);
   }
 
@@ -36,19 +34,35 @@ async function generateChatResponse(messages, context = {}) {
   ];
 
   try {
-    const response = await c.chat.completions.create({
-      model: MODEL,
-      messages: apiMessages,
-      max_tokens: 500,
-      temperature: 0.7,
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'http://localhost:3000',
+        'X-Title': 'AfterBell',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages: apiMessages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
     });
 
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Chat OpenRouter error:', response.status, errText);
+      return mockChatResponse(messages, context);
+    }
+
+    const data = await response.json();
     return {
-      content: sanitizeResponse(response.choices[0]?.message?.content || 'Sorry, I could not generate a response.'),
+      content: sanitizeResponse(data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.'),
       sources: null,
     };
   } catch (err) {
-    console.error('OpenRouter API error:', err.message);
+    console.error('Chat OpenRouter error:', err.message);
     return mockChatResponse(messages, context);
   }
 }
